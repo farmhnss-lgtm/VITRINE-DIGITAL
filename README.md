@@ -31,3 +31,24 @@ A V2 foi desenhada para funcionar no navegador de TVs TCL/Google TV/Android TV. 
 
 ## Segurança
 A V1/V2 ainda usa a política anônima de heartbeat para facilitar o primeiro teste. Antes de vender o serviço para vários clientes, substituir por autenticação de dispositivo/token e RLS restritivo.
+
+
+## V2 — orientação vertical/horizontal
+
+Cada tela pode usar uma orientação própria:
+- `landscape` = horizontal 16:9
+- `portrait` = vertical 9:16
+
+No painel, ao cadastrar uma tela, escolha **Horizontal (16:9)** ou **Vertical (9:16)**.
+
+Para um teste rápido sem banco:
+- Horizontal: `player/?code=TV-0001&orientation=landscape`
+- Vertical: `player/?code=TV-0001&orientation=portrait`
+
+Com Supabase, a orientação da tabela `screens.orientation` é aplicada automaticamente pelo player.
+
+
+## V2.2 — rota vertical direta
+Para testar o modo vertical sem depender do parâmetro da URL, use:
+`/player/portrait/?code=TV-0001`
+A rota normal `/player/?code=TV-0001` continua sendo a versão horizontal.
