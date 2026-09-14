@@ -1,10 +1,12 @@
-# Storage
+# Storage — Vitrine Digital V2.3
 
-Crie um bucket chamado `media`.
+A V2.3 permite selecionar imagens e vídeos diretamente do celular ou computador.
 
-Para o MVP:
-- imagens e vídeos ficam no bucket `media`
-- o banco guarda `file_url`
-- não coloque service_role/secret key no frontend
+## Supabase
+1. Execute o arquivo `policies.sql` no SQL Editor do Supabase (ou crie o bucket `media` como público e aplique as políticas de Storage).
+2. O bucket deve se chamar exatamente `media`.
+3. O painel precisa estar conectado ao Supabase em `js/config.js`.
+4. Ao selecionar um arquivo, o painel faz o upload para `media` e grava a URL pública na tabela `media`.
 
-Para produção, configure políticas de Storage por usuário/empresa e considere uploads resumíveis para arquivos grandes.
+## Modo local
+Sem Supabase, imagens de até 2 MB podem ser armazenadas localmente no navegador como teste. Vídeos e arquivos maiores exigem Supabase.

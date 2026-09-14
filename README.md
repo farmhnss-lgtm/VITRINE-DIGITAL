@@ -1,54 +1,29 @@
-# Vitrine Digital V2 — Samsung + TCL / Multiplataforma
+# Vitrine Digital 3.0
 
-Baseada diretamente na Vitrine Digital V1.
+Plataforma de sinalização digital para TVs, monitores e totens, com painel web e player multiplataforma.
 
-## Objetivo
-Player web de sinalização digital preparado para TVs Samsung/Tizen e TVs TCL/Android/Google TV, além de navegador comum e TV Box/mini PC.
+## O que foi acrescentado
+- Biblioteca com upload direto do aparelho (celular/PC) e URL.
+- Playlists com inclusão, ordenação por arrastar e soltar e pré-visualização.
+- Grupos de telas.
+- Programação por tela ou grupo, data inicial/final, horário e dias da semana.
+- Dashboard e monitoramento online/offline.
+- Relatório básico de eventos/heartbeat.
+- Player 16:9 e 9:16.
+- Cache de mídia para continuidade quando a conexão cair, quando o navegador permitir cache/CORS.
+- Compatibilidade com navegador, Android/Google TV/TCL e Samsung/Tizen via navegador/player web.
+- Estrutura inicial para proof-of-play, transições, pastas e horários de operação no Supabase.
 
-A Samsung oferece engine web HTML5/Chromium nas gerações atuais e suporte a vídeo HTML5, Fetch, WebSocket e armazenamento offline; por isso a V2 mantém o player em HTML/CSS/JS e evita dependências de navegador modernas desnecessárias. [Samsung Developer](https://developer.samsung.com/smarttv/develop/specifications/web-engine-specifications.html)
+## Rotas
+- `/admin/`
+- `/player/?code=TV-0001`
+- `/player/portrait/?code=TV-0001`
 
-## Estrutura
-- `admin/` — painel de gerenciamento
-- `player/` — player da TV
-- `js/player.js` — lógica multiplataforma
-- `css/player.css` — tela cheia, 16:9 e modo retrato
-- `supabase/` — banco e políticas
+## Supabase
+1. Execute `supabase/schema.sql` para a base original, se ainda não tiver executado.
+2. Execute `supabase/schema_v3.sql` para complementar a V3.
+3. Crie o bucket público `media` ou aplique as políticas de Storage de `supabase/policies.sql`.
+4. Crie `js/config.js` a partir de `js/config.example.js` usando apenas a chave pública/publishable.
 
-## Teste rápido
-1. Publique no GitHub Pages.
-2. Abra no navegador da TV:
-   `https://SEU-USUARIO.github.io/SEU-REPOSITORIO/player/?code=TV-0001`
-3. Para teste local sem Supabase, o player entra em modo demonstração.
-4. Com Supabase configurado, ele identifica a TV pelo código e busca a playlist.
-
-## Samsung
-O player usa HTML5 `<video>`, `autoplay`, `muted` e `playsinline`, recursos documentados pela Samsung para Smart TVs. Para modelos muito antigos, a compatibilidade depende da geração do Tizen/Web engine.
-
-Para uso profissional em Samsung Signage, a V2 pode evoluir depois para um app Tizen nativo, aproveitando APIs de controle do dispositivo. Isso é uma etapa separada da versão web.
-
-## TCL
-A V2 foi desenhada para funcionar no navegador de TVs TCL/Google TV/Android TV. Quando o modelo não tiver navegador adequado ou tiver limitações de autoplay, recomenda-se TV Box/mini PC com Chrome/Chromium.
-
-## Segurança
-A V1/V2 ainda usa a política anônima de heartbeat para facilitar o primeiro teste. Antes de vender o serviço para vários clientes, substituir por autenticação de dispositivo/token e RLS restritivo.
-
-
-## V2 — orientação vertical/horizontal
-
-Cada tela pode usar uma orientação própria:
-- `landscape` = horizontal 16:9
-- `portrait` = vertical 9:16
-
-No painel, ao cadastrar uma tela, escolha **Horizontal (16:9)** ou **Vertical (9:16)**.
-
-Para um teste rápido sem banco:
-- Horizontal: `player/?code=TV-0001&orientation=landscape`
-- Vertical: `player/?code=TV-0001&orientation=portrait`
-
-Com Supabase, a orientação da tabela `screens.orientation` é aplicada automaticamente pelo player.
-
-
-## V2.2 — rota vertical direta
-Para testar o modo vertical sem depender do parâmetro da URL, use:
-`/player/portrait/?code=TV-0001`
-A rota normal `/player/?code=TV-0001` continua sendo a versão horizontal.
+## Observação
+A arquitetura é original. Ela busca oferecer um conjunto de funções equivalente às plataformas profissionais de digital signage, sem copiar código ou interface proprietária de terceiros.

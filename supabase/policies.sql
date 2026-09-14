@@ -56,3 +56,30 @@ with check (active = true);
 
 -- IMPORTANTE: em produção, substituir esta política por autenticação
 -- de dispositivo/token antes de colocar o sistema em escala.
+
+
+-- Storage V2.3: bucket público para imagens/vídeos exibidos pelo player.
+insert into storage.buckets (id, name, public)
+values ('media', 'media', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "public read media files" on storage.objects;
+create policy "public read media files" on storage.objects
+for select to public
+using (bucket_id = 'media');
+
+drop policy if exists "authenticated upload media files" on storage.objects;
+create policy "authenticated upload media files" on storage.objects
+for insert to authenticated
+with check (bucket_id = 'media');
+
+drop policy if exists "authenticated update media files" on storage.objects;
+create policy "authenticated update media files" on storage.objects
+for update to authenticated
+using (bucket_id = 'media')
+with check (bucket_id = 'media');
+
+drop policy if exists "authenticated delete media files" on storage.objects;
+create policy "authenticated delete media files" on storage.objects
+for delete to authenticated
+using (bucket_id = 'media');

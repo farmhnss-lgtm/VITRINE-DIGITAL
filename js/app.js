@@ -1,98 +1,58 @@
-/* Vitrine Digital V1 - painel */
-const cfg = window.SUPABASE_CONFIG || {};
-const hasSupabase = !!(cfg.url && cfg.key && !cfg.url.includes("SEU-PROJETO"));
-const db = hasSupabase && window.supabase ? window.supabase.createClient(cfg.url, cfg.key) : null;
-
-const demo = {
-  screens: JSON.parse(localStorage.getItem("vd_screens") || "[]"),
-  media: JSON.parse(localStorage.getItem("vd_media") || "[]"),
-  playlists: JSON.parse(localStorage.getItem("vd_playlists") || "[]"),
-  schedules: JSON.parse(localStorage.getItem("vd_schedules") || "[]")
-};
-function saveDemo(){ for(const k of Object.keys(demo)) localStorage.setItem("vd_"+k, JSON.stringify(demo[k])); }
-
-function qs(s){return document.querySelector(s)}
-function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
-
-document.querySelectorAll(".nav").forEach(n=>n.onclick=()=> {
-  document.querySelectorAll(".nav").forEach(x=>x.classList.remove("active"));
-  document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));
-  n.classList.add("active"); qs("#"+n.dataset.section).classList.add("active"); render();
-});
-qs("#refreshBtn").onclick=render;
-
-async function load(table, fallback){
-  if(!db) return demo[fallback];
-  const {data,error}=await db.from(table).select("*").order("created_at",{ascending:false});
-  if(error){console.warn(error); return []}
-  return data||[];
-}
+/* Vitrine Digital 3.0 — painel original com fluxo inspirado em plataformas profissionais */
+const cfg=window.SUPABASE_CONFIG||{};const hasSupabase=!!(cfg.url&&cfg.key&&!cfg.url.includes('SEU-PROJETO'));const db=hasSupabase&&window.supabase?window.supabase.createClient(cfg.url,cfg.key):null;
+const blank={screens:[],media:[],playlists:[],playlist_items:[],schedules:[],groups:[],events:[]};
+const demo={};for(const k of Object.keys(blank))demo[k]=JSON.parse(localStorage.getItem('vd3_'+k)||'[]');
+const save=()=>Object.keys(demo).forEach(k=>localStorage.setItem('vd3_'+k,JSON.stringify(demo[k])));
+const qs=s=>document.querySelector(s), esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random();
+async function load(table){if(!db)return demo[table]||[];const {data,error}=await db.from(table).select('*').order('created_at',{ascending:false});if(error){console.warn(table,error);return []}return data||[]}
+async function insert(table,row){if(db){const {data,error}=await db.from(table).insert(row).select().single();if(error)throw error;return data}const x={id:uid(),created_at:new Date().toISOString(),...row};(demo[table]||(demo[table]=[])).push(x);save();return x}
+async function update(table,id,patch){if(db){const {error}=await db.from(table).update(patch).eq('id',id);if(error)throw error}else{const a=demo[table]||[],i=a.findIndex(x=>x.id===id);if(i>=0)a[i]={...a[i],...patch};save()}}
+async function remove(table,id){if(db){const {error}=await db.from(table).delete().eq('id',id);if(error)throw error}else{demo[table]=(demo[table]||[]).filter(x=>x.id!==id);save()}}
+function openModal(title,body){qs('#modalTitle').textContent=title;qs('#modalBody').innerHTML=body;qs('#modal').classList.remove('hidden')}
+function closeModal(){qs('#modal').classList.add('hidden')}
+qs('#closeModal').onclick=closeModal;qs('#modal').onclick=e=>{if(e.target.id==='modal')closeModal()};
+function go(section){document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active',n.dataset.section===section));document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id===section));render()}
+document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>go(n.dataset.section));document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)go(g.dataset.go)});qs('#refreshBtn').onclick=render;
 async function render(){
-  const screens=await load("screens","screens"), media=await load("media","media"), playlists=await load("playlists","playlists"), schedules=await load("schedules","schedules");
-  qs("#statScreens").textContent=screens.length;
-  qs("#statOnline").textContent=screens.filter(s=>s.status==="online").length;
-  qs("#statMedia").textContent=media.length;
-  qs("#statPlaylists").textContent=playlists.length;
-  qs("#modeLabel").textContent=db?"SUPABASE":"DEMO LOCAL";
-  qs("#screensBody").innerHTML=screens.map(s=>`<tr><td>${esc(s.name)}</td><td><code>${esc(s.code)}</code></td><td>${esc(s.location||"")}</td><td>${s.orientation==="portrait"?"↕ Vertical":"↔ Horizontal"}</td><td>${s.status==="online"?"🟢 Online":"⚪ Offline"}</td><td>${esc(s.playlist_id||"—")}</td></tr>`).join("")||emptyRow(5,"Nenhuma tela cadastrada.");
-  qs("#mediaBody").innerHTML=media.map(m=>`<tr><td>${esc(m.name)}</td><td>${esc(m.type)}</td><td>${esc(m.duration||10)}s</td><td>${m.file_url?`<a href="${esc(m.file_url)}" target="_blank">Abrir</a>`:"—"}</td></tr>`).join("")||emptyRow(4,"Nenhum conteúdo.");
-  qs("#playlistsBody").innerHTML=playlists.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.item_count??"—")}</td><td>${p.active?"Ativa":"Inativa"}</td></tr>`).join("")||emptyRow(3,"Nenhuma playlist.");
-  qs("#schedulesBody").innerHTML=schedules.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.playlist_id)}</td><td>${esc(s.start_time||"")}–${esc(s.end_time||"")}</td><td>${esc(s.days||"Todos")}</td></tr>`).join("")||emptyRow(4,"Nenhuma programação.");
+ const [screens,media,playlists,schedules,groups,items]=await Promise.all([load('screens'),load('media'),load('playlists'),load('schedules'),load('groups'),load('playlist_items')]);
+ const online=screens.filter(s=>s.status==='online').length;qs('#statScreens').textContent=screens.length;qs('#statScreensSub').textContent=`${online} online`;qs('#statMedia').textContent=media.length;qs('#statPlaylists').textContent=playlists.length;qs('#statSchedules').textContent=schedules.length;qs('#modeLabel').textContent=db?'SUPABASE':'DEMO LOCAL';qs('#connectionBadge').textContent=db?'Supabase conectado':'Demo local';
+ renderScreens(screens,playlists);renderMedia(media);renderPlaylists(playlists,media,items);renderSchedules(schedules,playlists,screens,groups);renderGroups(groups,screens,playlists);renderDashboard(screens);renderReports();
 }
-function emptyRow(n,text){return `<tr><td colspan="${n}" class="muted">${text}</td></tr>`}
+function renderDashboard(screens){qs('#dashboardScreens').innerHTML=screens.length?screens.slice(0,8).map(s=>`<div class="mini"><span><b>${esc(s.name)}</b><br><small>${esc(s.code)} · ${esc(s.location||'')}</small></span><span class="${s.status==='online'?'status-online':'status-offline'}">${s.status==='online'?'● Online':'○ Offline'}</span></div>`).join(''):'<p class="muted">Cadastre a primeira tela.</p>'}
+function renderScreens(screens,playlists){const term=(qs('#screenSearch')?.value||'').toLowerCase(),filter=qs('#screenFilter')?.value||'all';const arr=screens.filter(s=>(filter==='all'||s.status===filter)&&`${s.name} ${s.code} ${s.location||''}`.toLowerCase().includes(term));qs('#screensBody').innerHTML=arr.map(s=>`<tr><td><b>${esc(s.name)}</b><br><small class="muted">${esc(s.resolution||'Auto')}</small></td><td><code>${esc(s.code)}</code></td><td>${esc(s.location||'—')}</td><td>${s.orientation==='portrait'?'↕ Vertical':'↔ Horizontal'}</td><td class="${s.status==='online'?'status-online':'status-offline'}">${s.status==='online'?'● Online':'○ Offline'}</td><td>${esc((playlists.find(p=>p.id===s.playlist_id)||{}).name||'—')}</td><td><div class="action-row"><button class="btn small" data-screen-edit="${s.id}">Editar</button><button class="btn small ghost" data-screen-test="${s.id}">Abrir</button></div></td></tr>`).join('')||`<tr><td colspan="7" class="muted">Nenhuma tela encontrada.</td></tr>`}
+function renderMedia(media){const term=(qs('#mediaSearch')?.value||'').toLowerCase(),type=qs('#mediaTypeFilter')?.value||'all';const arr=media.filter(m=>(type==='all'||m.type===type)&&`${m.name} ${m.type}`.toLowerCase().includes(term));qs('#mediaGrid').innerHTML=arr.map(m=>{let thumb=m.type==='image'?`<img src="${esc(m.file_url)}" loading="lazy">`:m.type==='video'?`<video src="${esc(m.file_url)}" muted></video>`:m.type==='web'?`<span>🌐 WEB</span>`:`<span>▤ TEXTO</span>`;return `<div class="card media-card"><div class="thumb">${m.file_url?thumb:'Sem prévia'}</div><div class="media-info"><strong>${esc(m.name)}</strong><span class="tag">${esc(m.type)}</span> <span class="tag">${esc(m.duration||10)}s</span><div class="action-row" style="margin-top:10px"><button class="btn small" data-media-edit="${m.id}">Editar</button><button class="btn small danger" data-media-del="${m.id}">Excluir</button></div></div></div>`}).join('')||'<div class="card"><p class="muted">Nenhum conteúdo encontrado.</p></div>'}
+function renderPlaylists(playlists,media,items){qs('#playlistGrid').innerHTML=playlists.map(p=>{const its=items.filter(i=>i.playlist_id===p.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));return `<div class="card playlist-card"><div class="section-head" style="margin:0"><div><h2>${esc(p.name)}</h2><small class="muted">${its.length} itens</small></div><button class="btn small" data-playlist-add="${p.id}">+ Item</button></div><div class="playlist-items" data-playlist="${p.id}">${its.map(i=>{const m=media.find(x=>x.id===i.media_id);return `<div class="drag-item" draggable="true" data-item="${i.id}"><span>☷ ${esc(m?.name||'Conteúdo removido')}</span><button class="btn small danger" data-item-del="${i.id}">×</button></div>`}).join('')||'<div class="dropzone">Arraste conteúdos para esta playlist</div>'}</div><div class="action-row" style="margin-top:10px"><button class="btn small ghost" data-playlist-preview="${p.id}">Pré-visualizar</button><button class="btn small danger" data-playlist-del="${p.id}">Excluir</button></div></div>`}).join('')||'<div class="card"><p class="muted">Crie sua primeira playlist.</p></div>';wireDrag()}
+function renderSchedules(schedules,playlists,screens,groups){qs('#schedulesBody').innerHTML=schedules.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(playlists.find(p=>p.id===s.playlist_id)?.name||'—')}</td><td>${s.group_id?'Grupo: '+esc(groups.find(g=>g.id===s.group_id)?.name||'—'):'Tela: '+esc(screens.find(x=>x.id===s.screen_id)?.name||'—')}</td><td>${esc(s.start_date||'Hoje')} → ${esc(s.end_date||'Sem fim')}</td><td>${esc(s.start_time||'')}–${esc(s.end_time||'')}</td><td>${esc(s.days||'Todos')}</td><td><button class="btn small danger" data-schedule-del="${s.id}">Excluir</button></td></tr>`).join('')||'<tr><td colspan="7" class="muted">Nenhuma programação.</td></tr>'}
+function renderGroups(groups,screens,playlists){qs('#groupsGrid').innerHTML=groups.map(g=>{const ss=screens.filter(s=>s.group_id===g.id);return `<div class="card group-card"><h2>${esc(g.name)}</h2><p class="muted">${ss.length} telas</p><div class="mini-list">${ss.map(s=>`<div class="mini"><span>${esc(s.name)}</span><span>${esc(s.code)}</span></div>`).join('')||'<p class="muted">Nenhuma tela no grupo.</p>'}</div><div class="action-row" style="margin-top:12px"><button class="btn small" data-group-edit="${g.id}">Gerenciar</button><button class="btn small danger" data-group-del="${g.id}">Excluir</button></div></div>`}).join('')||'<div class="card"><p class="muted">Crie grupos como “Loja”, “Totens” ou “Campanha Natal”.</p></div>'}
+async function renderReports(){const ev=db?await load('screen_heartbeat').catch(()=>[]):demo.events||[];const arr=ev.slice(0,50);qs('#reportCount').textContent=arr.length;qs('#reportLast').textContent=arr[0]?new Date(arr[0].created_at||arr[0].last_ping).toLocaleTimeString('pt-BR'):'—';qs('#reportsBody').innerHTML=arr.map(e=>`<tr><td>${new Date(e.created_at||e.last_ping).toLocaleString('pt-BR')}</td><td>${esc(e.screen_id||'')}</td><td>heartbeat</td><td>${esc(e.player_version||'')}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Sem eventos.</td></tr>'}
+qs('#addScreenBtn').onclick=()=>openScreen();qs('#addMediaBtn').onclick=()=>openMedia();qs('#addPlaylistBtn').onclick=()=>openPlaylist();qs('#addScheduleBtn').onclick=()=>openSchedule();qs('#addGroupBtn').onclick=()=>openGroup();
+function openScreen(id){const s=id?(demo.screens.find(x=>x.id===id)||null):null;openModal(s?'Editar tela':'Adicionar tela',`<form id="screenForm" class="form"><input type="hidden" name="id" value="${esc(s?.id||'')}"><label>Nome<input name="name" required value="${esc(s?.name||'')}" placeholder="Totem 01"></label><label>Código<input name="code" required value="${esc(s?.code||'')}" placeholder="TV-0001"></label><label>Local<input name="location" value="${esc(s?.location||'')}" placeholder="Loja São Fernandes"></label><label>Orientação<select name="orientation"><option value="landscape" ${s?.orientation!=='portrait'?'selected':''}>Horizontal 16:9</option><option value="portrait" ${s?.orientation==='portrait'?'selected':''}>Vertical 9:16</option></select></label><label>Playlist<select name="playlist_id"><option value="">Sem playlist</option>${demo.playlists.map(p=>`<option value="${p.id}" ${s?.playlist_id===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label><label>Grupo<select name="group_id"><option value="">Sem grupo</option>${demo.groups.map(g=>`<option value="${g.id}" ${s?.group_id===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select></label><button class="btn">Salvar tela</button></form>`)}
+function openMedia(id){const m=id?(demo.media.find(x=>x.id===id)||null):null;openModal(m?'Editar conteúdo':'Adicionar conteúdo',`<form id="mediaForm" class="form"><input type="hidden" name="id" value="${esc(m?.id||'')}"><label>Nome<input name="name" required value="${esc(m?.name||'')}" placeholder="Campanha 01"></label><label>Tipo<select name="type"><option value="image" ${m?.type==='image'?'selected':''}>Imagem</option><option value="video" ${m?.type==='video'?'selected':''}>Vídeo</option><option value="web" ${m?.type==='web'?'selected':''}>Página Web</option><option value="text" ${m?.type==='text'?'selected':''}>Texto</option></select></label><label>Arquivo do aparelho<input name="file" type="file" accept="image/*,video/*"></label><label>URL opcional<input name="url" value="${esc(m?.file_url||'')}" placeholder="https://..."></label><label>Texto (se tipo Texto)<textarea name="text_content">${esc(m?.text_content||'')}</textarea></label><label>Duração (segundos)<input name="duration" type="number" min="1" value="${esc(m?.duration||10)}"></label><button class="btn">${m?'Salvar alterações':'Enviar e salvar'}</button></form>`)}
+function openPlaylist(){openModal('Nova playlist',`<form id="playlistForm" class="form"><label>Nome<input name="name" required placeholder="Campanha Loja"></label><label>Descrição<textarea name="description" placeholder="Ex.: campanha de setembro"></textarea></label><button class="btn">Criar playlist</button></form>`)}
+function openSchedule(){openModal('Nova programação',`<form id="scheduleForm" class="form"><label>Nome<input name="name" required placeholder="Campanha manhã"></label><label>Playlist<select name="playlist_id" required>${demo.playlists.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label><label>Destino<select name="target" id="targetType"><option value="screen">Tela</option><option value="group">Grupo</option></select></label><label id="targetField">Tela<select name="screen_id">${demo.screens.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label><label>Data inicial<input name="start_date" type="date"></label><label>Data final<input name="end_date" type="date"></label><label>Início<input name="start_time" type="time" value="08:00"></label><label>Fim<input name="end_time" type="time" value="18:00"></label><div><span class="muted">Dias da semana</span><div class="check-row">${['Seg','Ter','Qua','Qui','Sex','Sab','Dom'].map(d=>`<label><input type="checkbox" name="days" value="${d}" checked>${d}</label>`).join('')}</div></div><button class="btn">Salvar programação</button></form>`);qs('#targetType').onchange=e=>{qs('#targetField').innerHTML=e.target.value==='group'?`Grupo<select name="group_id">${demo.groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select>`:`Tela<select name="screen_id">${demo.screens.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select>`}}
+function openGroup(id){const g=id?(demo.groups.find(x=>x.id===id)||null):null;openModal(g?'Gerenciar grupo':'Novo grupo',`<form id="groupForm" class="form"><input type="hidden" name="id" value="${esc(g?.id||'')}"><label>Nome<input name="name" required value="${esc(g?.name||'')}" placeholder="Loja / Totens"></label><label>Playlist padrão<select name="playlist_id"><option value="">Nenhuma</option>${demo.playlists.map(p=>`<option value="${p.id}" ${g?.playlist_id===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label><div><span class="muted">Telas do grupo</span><div class="check-row">${demo.screens.map(s=>`<label><input type="checkbox" name="screen_ids" value="${s.id}" ${s.group_id===g?.id?'checked':''}>${esc(s.name)}</label>`).join('')}</div></div><button class="btn">Salvar grupo</button></form>`)}
+async function uploadFile(file){if(!file)return '';if(!db){if(file.type.startsWith('image/')&&file.size<=2*1024*1024)return await fileToDataUrl(file);throw new Error('No modo local, apenas imagens até 2 MB podem ser armazenadas. Conecte o Supabase para vídeos e arquivos maiores.')}const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');const path=`${Date.now()}-${uid()}-${safe}`;const {error}=await db.storage.from('media').upload(path,file,{upsert:false,contentType:file.type});if(error)throw error;return db.storage.from('media').getPublicUrl(path).data.publicUrl}
+async function fileToDataUrl(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})}
 
-function openModal(title,body){qs("#modalTitle").textContent=title;qs("#modalBody").innerHTML=body;qs("#modal").classList.remove("hidden")}
-qs("#closeModal").onclick=()=>qs("#modal").classList.add("hidden");
-qs("#modal").onclick=e=>{if(e.target.id==="modal")qs("#modal").classList.add("hidden")};
+document.addEventListener('submit',async e=>{const id=e.target.id;if(!['screenForm','mediaForm','playlistForm','scheduleForm','groupForm'].includes(id))return;e.preventDefault();const f=new FormData(e.target);try{
+ if(id==='screenForm'){const row={name:f.get('name'),code:f.get('code'),location:f.get('location'),orientation:f.get('orientation'),playlist_id:f.get('playlist_id')||null,group_id:f.get('group_id')||null,status:'offline',active:true};const existing=f.get('id');if(existing)await update('screens',existing,row);else await insert('screens',row)}
+ if(id==='mediaForm'){const existing=f.get('id');let url=(f.get('url')||'').trim();const file=f.get('file');if(file&&file.size)url=await uploadFile(file);if(!url&&f.get('type')!=='text')throw new Error('Selecione um arquivo ou informe uma URL.');const row={name:f.get('name'),type:f.get('type'),file_url:url||null,text_content:f.get('text_content')||null,duration:Number(f.get('duration')||10),active:true};if(existing)await update('media',existing,row);else await insert('media',row)}
+ if(id==='playlistForm')await insert('playlists',{name:f.get('name'),description:f.get('description'),active:true});
+ if(id==='scheduleForm'){const days=[...e.target.querySelectorAll('input[name="days"]:checked')].map(x=>x.value).join(',');await insert('schedules',{name:f.get('name'),playlist_id:f.get('playlist_id'),screen_id:f.get('target')==='screen'?f.get('screen_id'):null,group_id:f.get('target')==='group'?f.get('group_id'):null,start_date:f.get('start_date')||null,end_date:f.get('end_date')||null,start_time:f.get('start_time'),end_time:f.get('end_time'),days,active:true})}
+ if(id==='groupForm'){const gid=f.get('id');let g;if(gid){await update('groups',gid,{name:f.get('name'),playlist_id:f.get('playlist_id')||null});g=gid}else{g=(await insert('groups',{name:f.get('name'),playlist_id:f.get('playlist_id')||null,active:true})).id}const selected=[...e.target.querySelectorAll('input[name="screen_ids"]:checked')].map(x=>x.value);for(const s of demo.screens){if(db){if(selected.includes(s.id))await update('screens',s.id,{group_id:g});else if(s.group_id===g)await update('screens',s.id,{group_id:null})}else{if(selected.includes(s.id))s.group_id=g;else if(s.group_id===g)s.group_id=null}}save()}
+ closeModal();await render();
+ }catch(err){alert(err.message||String(err))}});
 
-qs("#addScreenBtn").onclick=()=>openModal("Adicionar tela",`
-<form id="screenForm" class="form">
-<label>Nome<input name="name" required placeholder="Totem 01"></label>
-<label>Código<input name="code" required placeholder="TV-0001"></label>
-<label>Local<input name="location" placeholder="Loja São Fernandes"></label>
-<label>Orientação
-<select name="orientation">
-<option value="landscape">Horizontal (16:9)</option>
-<option value="portrait">Vertical (9:16)</option>
-</select>
-</label>
-<button class="btn">Salvar</button></form>`);
-qs("#addMediaBtn").onclick=()=>openModal("Adicionar conteúdo",`
-<form id="mediaForm" class="form">
-<label>Nome<input name="name" required placeholder="Campanha 01"></label>
-<label>Tipo<select name="type"><option value="image">Imagem</option><option value="video">Vídeo</option></select></label>
-<label>URL do arquivo<input name="url" placeholder="https://..."></label>
-<label>Duração (segundos)<input name="duration" type="number" min="1" value="10"></label>
-<button class="btn">Salvar</button></form>`);
-qs("#addPlaylistBtn").onclick=()=>openModal("Nova playlist",`
-<form id="playlistForm" class="form">
-<label>Nome<input name="name" required placeholder="Campanha Loja"></label>
-<button class="btn">Salvar</button></form>`);
-qs("#addScheduleBtn").onclick=()=>openModal("Nova programação",`
-<form id="scheduleForm" class="form">
-<label>Nome<input name="name" required placeholder="Campanha manhã"></label>
-<label>Playlist ID<input name="playlist_id" required placeholder="UUID da playlist"></label>
-<label>Início<input name="start_time" type="time" value="08:00"></label>
-<label>Fim<input name="end_time" type="time" value="18:00"></label>
-<label>Dias<input name="days" value="Seg,Ter,Qua,Qui,Sex"></label>
-<button class="btn">Salvar</button></form>`);
-
-document.addEventListener("submit",async e=>{
-  if(!["screenForm","mediaForm","playlistForm","scheduleForm"].includes(e.target.id))return;
-  e.preventDefault(); const f=new FormData(e.target);
-  if(e.target.id==="screenForm"){
-    const row={name:f.get("name"),code:f.get("code"),location:f.get("location"),orientation:f.get("orientation")||"landscape",status:"offline"};
-    if(db) await db.from("screens").insert(row); else demo.screens.push({id:crypto.randomUUID(),...row,created_at:new Date().toISOString()});
-  } else if(e.target.id==="mediaForm"){
-    const row={name:f.get("name"),type:f.get("type"),file_url:f.get("url"),duration:Number(f.get("duration")||10),active:true};
-    if(db) await db.from("media").insert(row); else demo.media.push({id:crypto.randomUUID(),...row,created_at:new Date().toISOString()});
-  } else if(e.target.id==="playlistForm"){
-    const row={name:f.get("name"),active:true};
-    if(db) await db.from("playlists").insert(row); else demo.playlists.push({id:crypto.randomUUID(),...row,item_count:0,created_at:new Date().toISOString()});
-  } else {
-    const row={name:f.get("name"),playlist_id:f.get("playlist_id"),start_time:f.get("start_time"),end_time:f.get("end_time"),days:f.get("days"),active:true};
-    if(db) await db.from("schedules").insert(row); else demo.schedules.push({id:crypto.randomUUID(),...row,created_at:new Date().toISOString()});
-  }
-  saveDemo(); qs("#modal").classList.add("hidden"); render();
-});
+document.addEventListener('click',async e=>{try{
+ const se=e.target.closest('[data-screen-edit]');if(se)return openScreen(se.dataset.screenEdit);const st=e.target.closest('[data-screen-test]');if(st){const s=demo.screens.find(x=>x.id===st.dataset.screenTest);if(s)window.open(`../player/?code=${encodeURIComponent(s.code)}&orientation=${s.orientation}`,'_blank');return}
+ const md=e.target.closest('[data-media-edit]');if(md)return openMedia(md.dataset.mediaEdit);const delm=e.target.closest('[data-media-del]');if(delm&&confirm('Excluir este conteúdo?')){await remove('media',delm.dataset.mediaDel);await render();return}
+ const pd=e.target.closest('[data-playlist-del]');if(pd&&confirm('Excluir esta playlist?')){await remove('playlists',pd.dataset.playlistDel);await render();return}const pa=e.target.closest('[data-playlist-add]');if(pa)return addPlaylistItem(pa.dataset.playlistAdd);const di=e.target.closest('[data-item-del]');if(di){await remove('playlist_items',di.dataset.itemDel);await render();return}const pv=e.target.closest('[data-playlist-preview]');if(pv)return previewPlaylist(pv.dataset.playlistPreview);
+ const sd=e.target.closest('[data-schedule-del]');if(sd&&confirm('Excluir esta programação?')){await remove('schedules',sd.dataset.scheduleDel);await render();return}
+ const ge=e.target.closest('[data-group-edit]');if(ge)return openGroup(ge.dataset.groupEdit);const gd=e.target.closest('[data-group-del]');if(gd&&confirm('Excluir este grupo?')){await remove('groups',gd.dataset.groupDel);for(const s of demo.screens.filter(x=>x.group_id===gd.dataset.groupDel))await update('screens',s.id,{group_id:null});await render();return}
+ }catch(err){alert(err.message||String(err))}});
+async function addPlaylistItem(pid){if(!demo.media.length){alert('Adicione um conteúdo primeiro.');return}openModal('Adicionar conteúdo à playlist',`<div class="form">${demo.media.map(m=>`<button class="quick button-media" data-add-media="${m.id}" data-pid="${pid}">${esc(m.name)} <span class="muted">${esc(m.type)}</span></button>`).join('')}</div>`);document.querySelectorAll('[data-add-media]').forEach(b=>b.onclick=async()=>{const existing=demo.playlist_items.find(i=>i.playlist_id===b.dataset.pid&&i.media_id===b.dataset.addMedia);if(existing){alert('Esse conteúdo já está na playlist.');return}const n=demo.playlist_items.filter(i=>i.playlist_id===b.dataset.pid).length;await insert('playlist_items',{playlist_id:b.dataset.pid,media_id:b.dataset.addMedia,sort_order:n});closeModal();render()})}
+function wireDrag(){document.querySelectorAll('.drag-item').forEach(el=>{el.ondragstart=e=>e.dataTransfer.setData('text/plain',el.dataset.item)});document.querySelectorAll('[data-playlist]').forEach(zone=>{zone.ondragover=e=>e.preventDefault();zone.ondrop=async e=>{e.preventDefault();const id=e.dataTransfer.getData('text/plain');const item=demo.playlist_items.find(i=>i.id===id);if(!item)return;item.playlist_id=zone.dataset.playlist;item.sort_order=demo.playlist_items.filter(i=>i.playlist_id===zone.dataset.playlist).length;save();if(db)await update('playlist_items',id,{playlist_id:item.playlist_id,sort_order:item.sort_order});render()}})}
+function previewPlaylist(pid){const p=demo.playlists.find(x=>x.id===pid),its=demo.playlist_items.filter(i=>i.playlist_id===pid).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));const m=its.map(i=>demo.media.find(x=>x.id===i.media_id)).filter(Boolean);openModal('Pré-visualização',`<div class="card" style="padding:0;overflow:hidden"><div id="previewBox" style="aspect-ratio:16/9;background:#000;display:flex;align-items:center;justify-content:center"></div></div><p class="muted" style="margin-top:10px">${esc(p?.name||'Playlist')} · ${m.length} itens</p>`);let idx=0;const box=qs('#previewBox');const show=()=>{if(!m.length){box.innerHTML='<span class="muted">Playlist vazia</span>';return}const x=m[idx%m.length];box.innerHTML=x.type==='image'?`<img src="${esc(x.file_url)}" style="width:100%;height:100%;object-fit:contain">`:x.type==='video'?`<video src="${esc(x.file_url)}" autoplay muted controls style="width:100%;height:100%;object-fit:contain"></video>`:`<div style="padding:30px;font-size:22px;text-align:center">${esc(x.text_content||x.file_url||x.name)}</div>`;idx++;setTimeout(show,Math.max(2,Number(x.duration||5))*1000)};show()}
+['screenSearch','screenFilter','mediaSearch','mediaTypeFilter'].forEach(id=>{const el=qs('#'+id);if(el)el.addEventListener('input',render)});
 render();
