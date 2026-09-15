@@ -1,4 +1,4 @@
-/* Vitrine Digital PRO 4.22 — Monitoramento com Preview ao Vivo */
+/* Vitrine Digital PRO 4.22.1 — Correção Preview ao Vivo */
 const cfg=window.SUPABASE_CONFIG||{};const hasSupabase=!!(cfg.url&&cfg.key&&!cfg.url.includes('SEU-PROJETO'));const db=hasSupabase&&window.supabase?window.supabase.createClient(cfg.url,cfg.key):null;
 const blank={screens:[],media:[],playlists:[],playlist_items:[],schedules:[],groups:[],events:[],scenes:[]};
 const demo={};for(const k of Object.keys(blank))demo[k]=JSON.parse(localStorage.getItem('vd3_'+k)||'[]');
@@ -67,21 +67,21 @@ let monitorPreviewTimers=[];
 function stopMonitorPreviews(){monitorPreviewTimers.forEach(t=>clearTimeout(t));monitorPreviewTimers=[];document.querySelectorAll('.monitor-live-preview video').forEach(v=>{try{v.pause();v.removeAttribute('src');v.load()}catch(e){}})}
 function monitorPreviewMarkup(s,pid,playlistItems,media){
  const rows=(playlistItems||[]).filter(i=>i.playlist_id===pid).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
- const ids=rows.map(r=>r.media_id).filter(Boolean);
- if(!pid||!ids.length)return '<div class="monitor-placeholder">▣</div>';
- return `<div class="monitor-live-preview" data-live-screen="${esc(s.id)}" data-live-items="${esc(ids.join(','))}"><div class="monitor-placeholder">▶</div></div>`
+ const seq=rows.filter(r=>r.media_id).map(r=>({id:String(r.media_id),duration:Number(r.duration||0)}));
+ if(!pid||!seq.length)return '<div class="monitor-placeholder">▣</div>';
+ return `<div class="monitor-live-preview" data-live-screen="${esc(s.id)}" data-live-items="${esc(seq.map(x=>x.id+'|'+x.duration).join(','))}"><div class="monitor-placeholder">▶</div></div>`
 }
 function startMonitorPreviews(media){
  stopMonitorPreviews();
  const map=new Map((media||[]).map(m=>[String(m.id),m]));
  document.querySelectorAll('.monitor-live-preview').forEach(box=>{
-  const ids=String(box.dataset.liveItems||'').split(',').filter(Boolean);let idx=0,token=0;
+  const seq=String(box.dataset.liveItems||'').split(',').filter(Boolean).map(x=>{const [id,d]=x.split('|');return {id,duration:Number(d||0)}});let idx=0,token=0;
   const schedule=(fn,ms)=>{const t=setTimeout(fn,ms);monitorPreviewTimers.push(t)};
   const show=()=>{
    token++;const mine=token;box.innerHTML='';
-   if(!ids.length){box.innerHTML='<div class="monitor-placeholder">▣</div>';return}
-   const m=map.get(String(ids[idx++%ids.length]));if(!m){schedule(show,1500);return}
-   const src=mediaSrc(m),dur=Math.max(2,Number(m.duration||8))*1000;
+   if(!seq.length){box.innerHTML='<div class="monitor-placeholder">▣</div>';return}
+   const entry=seq[idx++%seq.length],m=map.get(String(entry.id));if(!m){schedule(show,1500);return}
+   const src=mediaSrc(m),dur=Math.max(2,Number(entry.duration||m.duration||8))*1000;
    if(m.type==='video'&&src){
     const v=document.createElement('video');v.src=src;v.autoplay=true;v.muted=true;v.playsInline=true;v.preload='metadata';v.loop=false;v.setAttribute('muted','');v.setAttribute('playsinline','');box.appendChild(v);
     let advanced=false;const next=()=>{if(advanced||mine!==token)return;advanced=true;show()};v.onended=next;v.onerror=next;v.play().catch(()=>{});schedule(next,Math.max(dur,3000));
