@@ -34,7 +34,17 @@ async function bootLocalPlayer(){
 }
 async function load(table){if(!db)return demo[table]||[];const {data,error}=await db.from(table).select('*').order('created_at',{ascending:false});if(error){console.warn(table,error);return []}return data||[]}
 async function insert(table,row){if(db){const {data,error}=await db.from(table).insert(row).select().single();if(error)throw error;return data}const x={id:uid(),created_at:new Date().toISOString(),...row};(demo[table]||(demo[table]=[])).push(x);save();return x}
-async function update(table,id,patch){if(db){const {error}=await db.from(table).update(patch).eq('id',id);if(error)throw error}else{const a=demo[table]||[],i=a.findIndex(x=>x.id===id);if(i>=0)a[i]={...a[i],...patch};save()}}
+async function update(table,id,patch){
+ if(db){
+  const {data,error}=await db.from(table).update(patch).eq('id',id).select('*');
+  if(error)throw error;
+  if(!data||data.length!==1)throw new Error('A alteração não foi confirmada pelo servidor. Atualize a página e tente novamente.');
+  return data[0];
+ }
+ const a=demo[table]||[],i=a.findIndex(x=>x.id===id);
+ if(i<0)throw new Error('Registro não encontrado para edição.');
+ a[i]={...a[i],...patch};save();return a[i]
+}
 async function remove(table,id){if(db){const {error}=await db.from(table).delete().eq('id',id);if(error)throw error}else{demo[table]=(demo[table]||[]).filter(x=>x.id!==id);save()}}
 function openModal(title,body){qs('#modalTitle').textContent=title;qs('#modalBody').innerHTML=body;qs('#modal').classList.remove('hidden')}
 function closeModal(){qs('#modal').classList.add('hidden')}
@@ -123,7 +133,13 @@ document.addEventListener('submit',async e=>{const id=e.target.id;if(id==='scree
  }
  const scheduleRow={name:f.get('name'),playlist_id:playlistId,screen_id:screenId,group_id:groupId,start_date:f.get('start_date')||null,end_date:f.get('end_date')||null,start_time:f.get('start_time'),end_time:f.get('end_time'),days,active:true};
  const scheduleId=f.get('id');
- if(scheduleId)await update('schedules',scheduleId,scheduleRow);else await insert('schedules',scheduleRow)
+ if(scheduleId){
+   const saved=await update('schedules',scheduleId,scheduleRow);
+   // Confirma especificamente os horários retornados pelo Supabase antes de fechar a janela.
+   const wantStart=String(scheduleRow.start_time||'').slice(0,5),wantEnd=String(scheduleRow.end_time||'').slice(0,5);
+   const gotStart=String(saved?.start_time||'').slice(0,5),gotEnd=String(saved?.end_time||'').slice(0,5);
+   if(gotStart!==wantStart||gotEnd!==wantEnd)throw new Error('O servidor não confirmou a mudança de horário.');
+ }else await insert('schedules',scheduleRow)
 }
  if(id==='groupForm'){const gid=f.get('id');let g;if(gid){await update('groups',gid,{name:f.get('name'),playlist_id:f.get('playlist_id')||null});g=gid}else{g=(await insert('groups',{name:f.get('name'),playlist_id:f.get('playlist_id')||null,active:true})).id}const selected=[...e.target.querySelectorAll('input[name="screen_ids"]:checked')].map(x=>x.value);for(const s of demo.screens){if(db){if(selected.includes(s.id))await update('screens',s.id,{group_id:g});else if(s.group_id===g)await update('screens',s.id,{group_id:null})}else{if(selected.includes(s.id))s.group_id=g;else if(s.group_id===g)s.group_id=null}}save()}
  alert('Salvo com sucesso!');
