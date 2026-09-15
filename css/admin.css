@@ -104,3 +104,26 @@ body.monitor-focus .monitor-grid{grid-template-columns:repeat(auto-fill,minmax(2
   .quick button{min-height:48px;font-size:15px}
   .mini{align-items:center;min-height:58px}
 }
+
+
+/* 4.26 — Operação Mobile Completa */
+.playlist-item-actions{display:flex;align-items:center;gap:5px;margin-left:auto}
+.mobile-order-btn{display:none}
+@media(max-width:700px){
+  .mobile-order-btn{display:inline-flex;align-items:center;justify-content:center;min-width:38px!important;min-height:38px!important;padding:6px 10px!important;font-size:18px!important}
+  .drag-item{gap:8px;align-items:center;min-height:56px;padding:9px 10px}
+  .drag-item>span{min-width:0;flex:1;white-space:normal;line-height:1.25}
+  .playlist-item-actions .danger{min-width:38px;min-height:38px}
+  #playlists .playlist-card .section-head{align-items:center}
+  #playlists .playlist-card .action-row .btn{flex:1}
+  .modal{align-items:flex-end;padding:0}
+  .modal-box{width:100%;max-width:none;border-radius:18px 18px 0 0;padding:20px 14px calc(18px + env(safe-area-inset-bottom));max-height:88dvh;overflow:auto}
+  .modal-box .close{position:sticky;top:0;float:right;z-index:2}
+  #schedules .table-wrap,#screens .table-wrap,#reports .table-wrap{margin-left:-14px;margin-right:-14px;border-radius:0;border-left:0;border-right:0;padding-left:6px;padding-right:6px}
+  #schedules table,#screens table,#reports table{font-size:12px}
+  #schedules th,#schedules td,#screens th,#screens td,#reports th,#reports td{padding:10px 8px}
+  #schedules td:last-child,#screens td:last-child{position:sticky;right:0;background:#0b1929;box-shadow:-8px 0 12px #07111fcc}
+  #media .media-card,#playlists .playlist-card{touch-action:manipulation}
+  #media .btn,#playlists .btn,#schedules .btn,#screens .btn{min-height:40px}
+  .section-head>.btn{white-space:nowrap}
+}
