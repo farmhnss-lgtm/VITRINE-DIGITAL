@@ -213,3 +213,13 @@ render();bootLocalPlayer();
 })();
 
 setInterval(()=>{if(qs('#monitor')?.classList.contains('active')&&!document.querySelector('#modal:not(.hidden)'))render().catch(console.warn)},30000);
+
+
+// 4.21 — logout real do painel remoto
+const logoutBtn=qs('#logoutBtn');
+if(logoutBtn)logoutBtn.onclick=async()=>{
+  try{
+    if(db){const {error}=await db.auth.signOut();if(error)throw error;}
+    location.replace('login.html');
+  }catch(e){console.error('logout',e);alert('Não foi possível sair: '+(e?.message||e));}
+};
