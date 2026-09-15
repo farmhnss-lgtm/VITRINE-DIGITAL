@@ -102,12 +102,46 @@ function openSchedule(id){
  const targetHtml=target==='group'?`Grupo<select name="group_id">${demo.groups.map(g=>`<option value="${g.id}" ${sc?.group_id===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select>`:`Tela<select name="screen_id">${demo.screens.map(x=>`<option value="${x.id}" ${sc?.screen_id===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`;
  openModal(sc?'Editar programação':'Nova programação',`<form id="scheduleForm" class="form"><input type="hidden" name="id" value="${esc(sc?.id||'')}"><label>Nome<input name="name" required value="${esc(sc?.name||'')}" placeholder="Campanha manhã"></label><label>Playlist<select name="playlist_id" required>${demo.playlists.map(p=>`<option value="${p.id}" ${sc?.playlist_id===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label><label>Destino<select name="target" id="targetType"><option value="screen" ${target==='screen'?'selected':''}>Tela</option><option value="group" ${target==='group'?'selected':''}>Grupo</option></select></label><label id="targetField">${targetHtml}</label><label>Data inicial<input name="start_date" type="date" value="${esc(sc?.start_date||'')}"></label><label>Data final<input name="end_date" type="date" value="${esc(sc?.end_date||'')}"></label><label>Início<input name="start_time" type="time" value="${esc(String(sc?.start_time||'08:00').slice(0,5))}"></label><label>Fim<input name="end_time" type="time" value="${esc(String(sc?.end_time||'18:00').slice(0,5))}"></label><div><span class="muted">Dias da semana</span><div class="check-row">${['Seg','Ter','Qua','Qui','Sex','Sab','Dom'].map(d=>`<label><input type="checkbox" name="days" value="${d}" ${checkedDays.includes(d)?'checked':''}>${d}</label>`).join('')}</div></div><button class="btn">${sc?'Salvar alterações':'Salvar programação'}</button></form>`);
  qs('#targetType').onchange=e=>{qs('#targetField').innerHTML=e.target.value==='group'?`Grupo<select name="group_id">${demo.groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select>`:`Tela<select name="screen_id">${demo.screens.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`}
+ const form=qs('#scheduleForm');
+ form.addEventListener('submit',async ev=>{
+   ev.preventDefault();ev.stopPropagation();
+   if(form.dataset.saving==='1')return;
+   form.dataset.saving='1';
+   const btn=form.querySelector('button.btn'),old=btn.textContent;btn.disabled=true;btn.textContent='Salvando…';
+   try{
+     const f=new FormData(form), scheduleId=String(f.get('id')||'').trim();
+     const days=[...form.querySelectorAll('input[name="days"]:checked')].map(x=>x.value).join(',');
+     const target=f.get('target'),screenId=target==='screen'?(f.get('screen_id')||null):null,groupId=target==='group'?(f.get('group_id')||null):null;
+     const row={name:String(f.get('name')||'').trim(),playlist_id:f.get('playlist_id')||null,screen_id:screenId,group_id:groupId,start_date:f.get('start_date')||null,end_date:f.get('end_date')||null,start_time:String(f.get('start_time')||'').slice(0,5),end_time:String(f.get('end_time')||'').slice(0,5),days,active:true};
+     if(!row.start_time||!row.end_time)throw new Error('Informe os horários de início e fim.');
+     let saved;
+     if(db){
+       if(scheduleId){
+         const {data,error}=await db.from('schedules').update(row).eq('id',scheduleId).select('*').single();
+         if(error)throw error;saved=data;
+       }else{
+         const {data,error}=await db.from('schedules').insert(row).select('*').single();
+         if(error)throw error;saved=data;
+       }
+       if(!saved)throw new Error('O Supabase não retornou a programação salva.');
+       const {data:fresh,error:freshError}=await db.from('schedules').select('*').eq('id',saved.id).single();
+       if(freshError)throw freshError;
+       const a=String(fresh.start_time||'').slice(0,5),b=String(fresh.end_time||'').slice(0,5);
+       if(a!==row.start_time||b!==row.end_time)throw new Error(`Horário não persistiu no servidor. Solicitado ${row.start_time}–${row.end_time}; servidor retornou ${a}–${b}.`);
+     }else{
+       saved=scheduleId?await update('schedules',scheduleId,row):await insert('schedules',row);
+     }
+     closeModal();await render();
+     alert(`Programação salva: ${row.start_time}–${row.end_time}`);
+   }catch(err){console.error('schedule save 4.19.3',err);alert('Erro ao salvar programação: '+(err.message||String(err)));}
+   finally{form.dataset.saving='0';btn.disabled=false;btn.textContent=old;}
+ },{capture:true});
 }
 function openGroup(id){const g=id?(demo.groups.find(x=>x.id===id)||null):null;openModal(g?'Gerenciar grupo':'Novo grupo',`<form id="groupForm" class="form"><input type="hidden" name="id" value="${esc(g?.id||'')}"><label>Nome<input name="name" required value="${esc(g?.name||'')}" placeholder="Loja / Totens"></label><label>Playlist padrão<select name="playlist_id"><option value="">Nenhuma</option>${demo.playlists.map(p=>`<option value="${p.id}" ${g?.playlist_id===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label><div><span class="muted">Telas do grupo</span><div class="check-row">${demo.screens.map(s=>`<label><input type="checkbox" name="screen_ids" value="${s.id}" ${s.group_id===g?.id?'checked':''}>${esc(s.name)}</label>`).join('')}</div></div><button class="btn">Salvar grupo</button></form>`)}
 async function uploadFile(file){if(!file)return '';if(!db){if(file.type.startsWith('image/')&&file.size<=2*1024*1024)return await fileToDataUrl(file);throw new Error('No modo local, apenas imagens até 2 MB podem ser armazenadas. Conecte o Supabase para vídeos e arquivos maiores.')}const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');const path=`${Date.now()}-${uid()}-${safe}`;const {error}=await db.storage.from('media').upload(path,file,{upsert:false,contentType:file.type});if(error)throw error;return db.storage.from('media').getPublicUrl(path).data.publicUrl}
 async function fileToDataUrl(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})}
 
-document.addEventListener('submit',async e=>{const id=e.target.id;if(id==='screenForm')return;if(id==='mediaForm')return;if(!['playlistForm','scheduleForm','groupForm'].includes(id))return;e.preventDefault();const f=new FormData(e.target);try{
+document.addEventListener('submit',async e=>{const id=e.target.id;if(id==='screenForm')return;if(id==='mediaForm')return;if(id==='scheduleForm')return;if(!['playlistForm','groupForm'].includes(id))return;e.preventDefault();const f=new FormData(e.target);try{
  if(id==='screenForm'){const row={name:f.get('name'),code:f.get('code'),location:f.get('location'),orientation:f.get('orientation'),playlist_id:f.get('playlist_id')||null,group_id:f.get('group_id')||null,status:'offline',active:true};const existing=f.get('id');if(existing)await update('screens',existing,row);else await insert('screens',row)}
  if(id==='mediaForm'){const existing=f.get('id');let url=(f.get('url')||'').trim();const file=f.get('file');if(file&&file.size)url=await uploadFile(file);if(!url&&f.get('type')!=='text')throw new Error('Selecione um arquivo ou informe uma URL.');const row={name:f.get('name'),type:f.get('type'),file_url:url||null,text_content:f.get('text_content')||null,duration:Number(f.get('duration')||10),active:true};if(existing)await update('media',existing,row);else await insert('media',row)}
  if(id==='playlistForm')await insert('playlists',{name:f.get('name'),description:f.get('description'),active:true});
