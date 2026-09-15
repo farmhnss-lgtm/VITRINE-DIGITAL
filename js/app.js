@@ -1,4 +1,4 @@
-/* Vitrine Digital PRO 4.10 — programação ativa + operação local/remota */
+/* Vitrine Digital PRO 4.13 — estado remoto sincronizado + login corrigido */
 const cfg=window.SUPABASE_CONFIG||{};const hasSupabase=!!(cfg.url&&cfg.key&&!cfg.url.includes('SEU-PROJETO'));const db=hasSupabase&&window.supabase?window.supabase.createClient(cfg.url,cfg.key):null;
 const blank={screens:[],media:[],playlists:[],playlist_items:[],schedules:[],groups:[],events:[],scenes:[]};
 const demo={};for(const k of Object.keys(blank))demo[k]=JSON.parse(localStorage.getItem('vd3_'+k)||'[]');
@@ -22,7 +22,7 @@ async function bootLocalPlayer(){
  let media=rows.map(r=>demo.media.find(m=>m.id===r.media_id)).filter(Boolean);await resolveLocalMediaUrls();
  const wrap=document.createElement('div');wrap.id='localPlayerOverlay';wrap.style.cssText='position:fixed;inset:0;z-index:999999;background:#05070b;color:#fff;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;overflow:hidden';
  wrap.innerHTML='<div id="lpStage" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000"></div><div id="lpStatus" style="position:absolute;left:14px;bottom:12px;font-size:12px;background:#0009;padding:7px 10px;border-radius:7px"></div><button id="lpStart" style="position:absolute;right:14px;bottom:12px;padding:9px 13px;border:0;border-radius:8px">Iniciar</button><button id="lpClose" style="position:absolute;right:14px;top:12px;padding:7px 11px;border:0;border-radius:8px">Fechar</button>';
- document.body.appendChild(wrap);const stage=wrap.querySelector('#lpStage'),status=wrap.querySelector('#lpStatus'),start=wrap.querySelector('#lpStart');status.textContent='Demo local • '+(pl?.name||'Playlist')+(resolved.schedule?' • Agenda: '+resolved.schedule.name:' • Playlist padrão')+' • '+code+' • v4.10';
+ document.body.appendChild(wrap);const stage=wrap.querySelector('#lpStage'),status=wrap.querySelector('#lpStatus'),start=wrap.querySelector('#lpStart');status.textContent='Demo local • '+(pl?.name||'Playlist')+(resolved.schedule?' • Agenda: '+resolved.schedule.name:' • Playlist padrão')+' • '+code+' • v4.11';
  let i=0,t=null,obj=[];const cleanup=()=>{if(t)clearTimeout(t);obj.forEach(URL.revokeObjectURL);wrap.remove()};wrap.querySelector('#lpClose').onclick=cleanup;
  async function show(){if(t)clearTimeout(t);stage.innerHTML='';if(!media.length){stage.innerHTML='<div>Playlist vazia</div>';return}const m=media[i++%media.length],src=mediaSrc(m);if(!src&&m.type!=='text'){stage.innerHTML='<div style="text-align:center"><b>Mídia não encontrada no armazenamento local.</b><br><small>Reenvie este conteúdo nesta versão.</small></div>';status.textContent='ERRO • arquivo local não encontrado • '+m.name;return}
   if(m.type==='video'){const v=document.createElement('video');v.src=src;v.autoplay=true;v.muted=true;v.playsInline=true;v.style.cssText='width:100%;height:100%;object-fit:contain;background:#000';stage.appendChild(v);v.onended=show;v.onerror=()=>{status.textContent='ERRO DE VÍDEO • '+m.name+' • '+(v.error?.message||'formato/arquivo');};try{await v.play();start.style.display='none'}catch(e){status.textContent='Clique em Iniciar • '+m.name;start.style.display='block';start.onclick=async()=>{try{await v.play();start.style.display='none'}catch(err){status.textContent='Falha ao iniciar: '+err.message}}}t=setTimeout(show,Math.max(10,Number(m.duration||30))*1000)}
@@ -30,7 +30,7 @@ async function bootLocalPlayer(){
   else if(m.type==='web'){const f=document.createElement('iframe');f.src=src;f.style.cssText='width:100%;height:100%;border:0';stage.appendChild(f);t=setTimeout(show,Math.max(5,Number(m.duration||15))*1000)}
   else{const d=document.createElement('div');d.textContent=m.text_content||m.name;d.style.cssText='font-size:5vw;text-align:center;padding:5vw';stage.appendChild(d);t=setTimeout(show,Math.max(2,Number(m.duration||8))*1000)} }
  show();
- setInterval(async()=>{const next=resolveLocalPlaylist();if(next.pid!==pid){pid=next.pid;resolved=next;pl=demo.playlists.find(x=>x.id===pid);rows=demo.playlist_items.filter(x=>x.playlist_id===pid).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));media=rows.map(r=>demo.media.find(m=>m.id===r.media_id)).filter(Boolean);await resolveLocalMediaUrls();i=0;status.textContent='Demo local • '+(pl?.name||'Playlist')+(resolved.schedule?' • Agenda: '+resolved.schedule.name:' • Playlist padrão')+' • '+code+' • v4.10';show()}},15000);
+ setInterval(async()=>{const next=resolveLocalPlaylist();if(next.pid!==pid){pid=next.pid;resolved=next;pl=demo.playlists.find(x=>x.id===pid);rows=demo.playlist_items.filter(x=>x.playlist_id===pid).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));media=rows.map(r=>demo.media.find(m=>m.id===r.media_id)).filter(Boolean);await resolveLocalMediaUrls();i=0;status.textContent='Demo local • '+(pl?.name||'Playlist')+(resolved.schedule?' • Agenda: '+resolved.schedule.name:' • Playlist padrão')+' • '+code+' • v4.11';show()}},15000);
 }
 async function load(table){if(!db)return demo[table]||[];const {data,error}=await db.from(table).select('*').order('created_at',{ascending:false});if(error){console.warn(table,error);return []}return data||[]}
 async function insert(table,row){if(db){const {data,error}=await db.from(table).insert(row).select().single();if(error)throw error;return data}const x={id:uid(),created_at:new Date().toISOString(),...row};(demo[table]||(demo[table]=[])).push(x);save();return x}
@@ -43,7 +43,9 @@ function go(section){document.querySelectorAll('.nav').forEach(n=>n.classList.to
 document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>go(n.dataset.section));document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)go(g.dataset.go)});qs('#refreshBtn').onclick=render;
 async function render(){
  await resolveLocalMediaUrls();
- const [screens,media,playlists,schedules,groups,items]=await Promise.all([load('screens'),load('media'),load('playlists'),load('schedules'),load('groups'),load('playlist_items')]);
+ const [screens,media,playlists,schedules,groups,items,scenes]=await Promise.all([load('screens'),load('media'),load('playlists'),load('schedules'),load('groups'),load('playlist_items'),load('scenes')]);
+ // Keep the in-memory state synchronized with Supabase. Modal editors and actions use `demo` as the current UI state.
+ if(db){demo.screens=screens;demo.media=media;demo.playlists=playlists;demo.schedules=schedules;demo.groups=groups;demo.playlist_items=items;demo.scenes=scenes;}
  const online=screens.filter(s=>s.status==='online').length;qs('#statScreens').textContent=screens.length;qs('#statScreensSub').textContent=`${online} online`;qs('#statMedia').textContent=media.length;qs('#statPlaylists').textContent=playlists.length;qs('#statSchedules').textContent=schedules.length;qs('#modeLabel').textContent=db?'SUPABASE':'DEMO LOCAL';qs('#connectionBadge').textContent=db?'Supabase conectado':'Demo local';
  renderScreens(screens,playlists);renderMedia(media);renderPlaylists(playlists,media,items);renderSchedules(schedules,playlists,screens,groups);renderGroups(groups,screens,playlists);renderDashboard(screens);renderReports();
 }
@@ -92,14 +94,35 @@ document.addEventListener('submit',async e=>{const id=e.target.id;if(id==='scree
  if(id==='screenForm'){const row={name:f.get('name'),code:f.get('code'),location:f.get('location'),orientation:f.get('orientation'),playlist_id:f.get('playlist_id')||null,group_id:f.get('group_id')||null,status:'offline',active:true};const existing=f.get('id');if(existing)await update('screens',existing,row);else await insert('screens',row)}
  if(id==='mediaForm'){const existing=f.get('id');let url=(f.get('url')||'').trim();const file=f.get('file');if(file&&file.size)url=await uploadFile(file);if(!url&&f.get('type')!=='text')throw new Error('Selecione um arquivo ou informe uma URL.');const row={name:f.get('name'),type:f.get('type'),file_url:url||null,text_content:f.get('text_content')||null,duration:Number(f.get('duration')||10),active:true};if(existing)await update('media',existing,row);else await insert('media',row)}
  if(id==='playlistForm')await insert('playlists',{name:f.get('name'),description:f.get('description'),active:true});
- if(id==='scheduleForm'){const days=[...e.target.querySelectorAll('input[name="days"]:checked')].map(x=>x.value).join(',');await insert('schedules',{name:f.get('name'),playlist_id:f.get('playlist_id'),screen_id:f.get('target')==='screen'?f.get('screen_id'):null,group_id:f.get('target')==='group'?f.get('group_id'):null,start_date:f.get('start_date')||null,end_date:f.get('end_date')||null,start_time:f.get('start_time'),end_time:f.get('end_time'),days,active:true})}
+ if(id==='scheduleForm'){
+ const days=[...e.target.querySelectorAll('input[name="days"]:checked')].map(x=>x.value).join(',');
+ const target=f.get('target');
+ const screenId=target==='screen'?f.get('screen_id'):null;
+ const groupId=target==='group'?f.get('group_id'):null;
+ let playlistId=f.get('playlist_id')||null;
+ // 4.15.1: valida os IDs contra o estado remoto atual antes do INSERT.
+ // Evita FK quando uma aba/formulário antigo ficou aberto com UUID de playlist já substituído.
+ if(db){
+   const remotePlaylists=await load('playlists');
+   if(!remotePlaylists.some(p=>p.id===playlistId)){
+     const remoteScreens=await load('screens');
+     const targetScreen=remoteScreens.find(x=>x.id===screenId);
+     if(targetScreen?.playlist_id && remotePlaylists.some(p=>p.id===targetScreen.playlist_id)){
+       playlistId=targetScreen.playlist_id;
+     }else{
+       throw new Error('A playlist selecionada não existe mais no servidor. Feche esta janela, clique Atualizar e abra a programação novamente.');
+     }
+   }
+ }
+ await insert('schedules',{name:f.get('name'),playlist_id:playlistId,screen_id:screenId,group_id:groupId,start_date:f.get('start_date')||null,end_date:f.get('end_date')||null,start_time:f.get('start_time'),end_time:f.get('end_time'),days,active:true})
+}
  if(id==='groupForm'){const gid=f.get('id');let g;if(gid){await update('groups',gid,{name:f.get('name'),playlist_id:f.get('playlist_id')||null});g=gid}else{g=(await insert('groups',{name:f.get('name'),playlist_id:f.get('playlist_id')||null,active:true})).id}const selected=[...e.target.querySelectorAll('input[name="screen_ids"]:checked')].map(x=>x.value);for(const s of demo.screens){if(db){if(selected.includes(s.id))await update('screens',s.id,{group_id:g});else if(s.group_id===g)await update('screens',s.id,{group_id:null})}else{if(selected.includes(s.id))s.group_id=g;else if(s.group_id===g)s.group_id=null}}save()}
  alert('Salvo com sucesso!');
  closeModal();await render();
  }catch(err){console.error(err);alert('Erro ao salvar: '+(err.message||String(err)))}});
 
 document.addEventListener('click',async e=>{try{
- const se=e.target.closest('[data-screen-edit]');if(se)return openScreen(se.dataset.screenEdit);const st=e.target.closest('[data-screen-test]');if(st){const s=demo.screens.find(x=>x.id===st.dataset.screenTest);if(s){const u=db?`../player/index.html?code=${encodeURIComponent(s.code)}&orientation=${encodeURIComponent(s.orientation||'landscape')}`:`index.html?localPlayer=${encodeURIComponent(s.code)}&orientation=${encodeURIComponent(s.orientation||'landscape')}`;window.open(u,'_blank')}return}
+ const se=e.target.closest('[data-screen-edit]');if(se)return openScreen(se.dataset.screenEdit);const st=e.target.closest('[data-screen-test]');if(st){const s=demo.screens.find(x=>x.id===st.dataset.screenTest);if(s){const u=db?`../player/index.html?code=${encodeURIComponent(s.code)}`:`index.html?localPlayer=${encodeURIComponent(s.code)}&orientation=${encodeURIComponent(s.orientation||'landscape')}`;window.open(u,'_blank')}return}
  const md=e.target.closest('[data-media-edit]');if(md)return openMedia(md.dataset.mediaEdit);const delm=e.target.closest('[data-media-del]');if(delm&&confirm('Excluir este conteúdo?')){await remove('media',delm.dataset.mediaDel);await render();return}
  const pd=e.target.closest('[data-playlist-del]');if(pd&&confirm('Excluir esta playlist?')){await remove('playlists',pd.dataset.playlistDel);await render();return}const pa=e.target.closest('[data-playlist-add]');if(pa)return addPlaylistItem(pa.dataset.playlistAdd);const di=e.target.closest('[data-item-del]');if(di){await remove('playlist_items',di.dataset.itemDel);await render();return}const pv=e.target.closest('[data-playlist-preview]');if(pv)return previewPlaylist(pv.dataset.playlistPreview);
  const sd=e.target.closest('[data-schedule-del]');if(sd&&confirm('Excluir esta programação?')){await remove('schedules',sd.dataset.scheduleDel);await render();return}

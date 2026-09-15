@@ -1,5 +1,5 @@
 (function(){'use strict';
-const PLAYER_VERSION='4.9.4';
+const PLAYER_VERSION='4.16.0';
 const cfg=window.SUPABASE_CONFIG||{}, hasConfig=!!(cfg.url&&cfg.key&&!String(cfg.url).includes('SEU-PROJETO'));
 const root=document.getElementById('playerRoot'),stage=document.getElementById('stage'),status=document.getElementById('status'),empty=document.getElementById('empty'),emptyMessage=document.getElementById('emptyMessage'),startBtn=document.getElementById('startBtn'),fullscreenBtn=document.getElementById('fullscreenBtn');
 const p=new URLSearchParams(location.search), code=(p.get('code')||localStorage.getItem('vitrine_screen_code')||'TV-0001').trim(); localStorage.setItem('vitrine_screen_code',code);
@@ -26,7 +26,25 @@ function timeHHMM(d){return String(d.getHours()).padStart(2,'0')+':'+String(d.ge
 function scheduleMatches(s,now){const iso=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'),t=timeHHMM(now);if(s.active===false)return false;if(s.start_date&&iso<s.start_date)return false;if(s.end_date&&iso>s.end_date)return false;const st=String(s.start_time||'').slice(0,5),et=String(s.end_time||'').slice(0,5);if(st&&et&&st<=et){if(t<st||t>et)return false}else if(st&&et&&st>et){if(t>et&&t<st)return false}else{if(st&&t<st)return false;if(et&&t>et)return false}const days=String(s.days||'').split(',').map(x=>x.trim()).filter(Boolean);return !days.length||days.includes(dayToken(now))}
 async function resolvePlaylist(){if(!db||!screen)return screen?.playlist_id||null;try{const {data,error}=await db.from('schedules').select('*').eq('active',true);if(error)throw error;const now=new Date();const matches=(data||[]).filter(s=>(s.screen_id===screen.id||(screen.group_id&&s.group_id===screen.group_id))&&scheduleMatches(s,now));matches.sort((a,b)=>Number(b.screen_id===screen.id)-Number(a.screen_id===screen.id)||new Date(b.created_at)-new Date(a.created_at));return matches[0]?.playlist_id||screen.playlist_id||null}catch(e){return screen.playlist_id||null}}
 async function heartbeat(){if(!db||!screen)return;const now=new Date().toISOString();try{await db.from('screens').update({status:'online',ultima_conexao:now,player_version:PLAYER_VERSION,last_error:null}).eq('id',screen.id);await db.from('screen_heartbeat').insert({screen_id:screen.id,last_ping:now,player_version:PLAYER_VERSION})}catch(e){setStatus('Sem sincronização • '+platform,true)}}
-async function loadPlaylist(){if(!db||!screen)return;const pid=await resolvePlaylist();if(!pid){items=[];activePlaylistId=null;playlistSignature='';if(started)playNext();return}let q=db.from('playlist_items').select('id,sort_order,duration,transition,media:media_id(id,type,file_url,text_content,name,duration,active)').eq('playlist_id',pid).order('sort_order',{ascending:true});const {data,error}=await q;if(error)throw error;const rows=(data||[]).filter(r=>r.media&&r.media.active!==false);const sig=pid+'|'+JSON.stringify(rows.map(r=>[r.id,r.sort_order,r.duration,r.media?.id,r.media?.file_url]));if(sig===playlistSignature)return;playlistSignature=sig;activePlaylistId=pid;index=0;items=await prepareItems(rows);localStorage.setItem('vitrine_manifest_'+code,JSON.stringify({saved_at:Date.now(),playlist_id:pid,items:normalize(rows),orientation:screen.orientation}));if(started)playNext()}
+async function loadPlaylist(){
+ if(!db||!screen)return false;
+ const pid=await resolvePlaylist();
+ if(!pid){items=[];activePlaylistId=null;playlistSignature='';showEmpty('Nenhuma playlist vinculada à tela '+code+'.');return false}
+ const {data:pi,error:piError}=await db.from('playlist_items').select('id,playlist_id,media_id,sort_order,duration,transition').eq('playlist_id',pid).order('sort_order',{ascending:true});
+ if(piError)throw new Error('playlist_items: '+piError.message);
+ const ids=[...new Set((pi||[]).map(x=>x.media_id).filter(Boolean))];
+ if(!ids.length){items=[];showEmpty('A playlist vinculada está vazia.');return false}
+ const {data:med,error:medError}=await db.from('media').select('id,type,file_url,text_content,name,duration,active').in('id',ids);
+ if(medError)throw new Error('media: '+medError.message);
+ const byId=new Map((med||[]).map(m=>[m.id,m]));
+ const rows=(pi||[]).map(r=>({...r,media:byId.get(r.media_id)})).filter(r=>r.media&&r.media.active!==false);
+ const sig=pid+'|'+JSON.stringify(rows.map(r=>[r.id,r.sort_order,r.duration,r.media.id,r.media.file_url]));
+ if(sig===playlistSignature)return true;
+ playlistSignature=sig;activePlaylistId=pid;index=0;items=await prepareItems(rows);
+ localStorage.setItem('vitrine_manifest_'+code,JSON.stringify({saved_at:Date.now(),playlist_id:pid,items:normalize(rows),orientation:screen.orientation}));
+ if(!items.length){showEmpty('Nenhum conteúdo ativo disponível.');return false}
+ hideEmpty(); if(started)playNext(); return true;
+}
 async function loadCached(){try{const x=JSON.parse(localStorage.getItem('vitrine_manifest_'+code)||'null');if(x?.items?.length){applyOrientation(pathOrientation||x.orientation||'landscape');activePlaylistId=x.playlist_id||null;items=await prepareItems(x.items);setStatus('Offline • conteúdo em cache • '+platform,true);return true}}catch(e){}return false}
 function readDemo(key){try{return JSON.parse(localStorage.getItem('vd3_'+key)||'[]')}catch(e){return []}}
 const LOCAL_MEDIA_DB='vitrine_local_media_v1',LOCAL_MEDIA_STORE='files';
@@ -36,7 +54,7 @@ async function loadDemo(){
  const screens=readDemo('screens'), playlists=readDemo('playlists'), media=readDemo('media'), pi=readDemo('playlist_items');
  screen=screens.find(x=>String(x.code||'').trim()===code);
  if(!screen){showEmpty('Tela '+code+' não encontrada no Demo local.');return false}
- applyOrientation(pathOrientation||p.get('orientation')||screen.orientation||'landscape');
+ applyOrientation(screen.orientation||pathOrientation||p.get('orientation')||'landscape');
  activePlaylistId=screen.playlist_id||null;
  if(!activePlaylistId){showEmpty('Nenhuma playlist vinculada à tela '+code+'.');return false}
  const rows=pi.filter(x=>x.playlist_id===activePlaylistId).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(r=>{const m=media.find(x=>x.id===r.media_id);return m?{...r,media:m}:null}).filter(Boolean);
@@ -45,6 +63,29 @@ async function loadDemo(){
  if(!items.length){showEmpty('A playlist vinculada está vazia.');return false}
  return true
 }
-async function boot(){applyOrientation(pathOrientation||p.get('orientation')||'landscape');setStatus('Player '+PLAYER_VERSION+' • '+platform,true);if(!hasConfig){const ok=await loadDemo();if(ok)start();return}try{db=window.supabase.createClient(cfg.url,cfg.key,{auth:{persistSession:false,autoRefreshToken:false}});const {data,error}=await db.from('screens').select('*').eq('code',code).eq('active',true).maybeSingle();if(error)throw error;if(!data)throw new Error('Tela não encontrada');screen=data;applyOrientation(pathOrientation||data.orientation||'landscape');await heartbeat();await loadPlaylist();heartbeatTimer=setInterval(heartbeat,30000);reloadTimer=setInterval(loadPlaylist,30000);setStatus('Online • '+platform+' • v'+PLAYER_VERSION,true);start()}catch(e){console.error(e);const ok=await loadCached();if(!ok)showEmpty('Sem conexão e sem conteúdo em cache.');setTimeout(()=>{if(!started)start()},1200)}}
+async function boot(){
+ applyOrientation(pathOrientation||p.get('orientation')||'landscape');
+ setStatus('Conectando • '+platform+' • v'+PLAYER_VERSION,true);
+ if(!hasConfig){const ok=await loadDemo();if(ok)start();return}
+ try{
+   if(!window.supabase)throw new Error('Biblioteca Supabase não carregou');
+   db=window.supabase.createClient(cfg.url,cfg.key,{auth:{persistSession:false,autoRefreshToken:false}});
+   const {data,error}=await db.from('screens').select('*').eq('code',code).eq('active',true).maybeSingle();
+   if(error)throw new Error('screens: '+error.message);
+   if(!data)throw new Error('Tela '+code+' não encontrada/ativa');
+   screen=data; applyOrientation(data.orientation||pathOrientation||p.get('orientation')||'landscape');
+   const ok=await loadPlaylist();
+   setStatus('Online • '+platform+' • v'+PLAYER_VERSION,true);
+   heartbeat(); heartbeatTimer=setInterval(heartbeat,30000);
+   reloadTimer=setInterval(async()=>{try{await loadPlaylist()}catch(e){console.error(e);setStatus('Online • erro de sincronização • v'+PLAYER_VERSION,true)}},30000);
+   if(ok)start();
+ }catch(e){
+   console.error('PLAYER BOOT',e);
+   setStatus('Erro remoto • '+platform+' • v'+PLAYER_VERSION,true);
+   const ok=await loadCached();
+   if(!ok)showEmpty('Falha ao sincronizar: '+(e?.message||'erro desconhecido'));
+   if(ok)setTimeout(()=>{if(!started)start()},300);
+ }
+}
 window.addEventListener('beforeunload',finishProof);boot();
 })();

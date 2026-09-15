@@ -16,3 +16,28 @@
   .player-root:not(.landscape) .stage img,
   .player-root:not(.landscape) .stage video { object-fit: cover; }
 }
+
+/* 4.14.1: respeita o atributo hidden do overlay de espera. */
+.empty[hidden]{display:none!important}
+
+/* 4.15 — orientação real do canvas.
+   Horizontal = 16:9. Vertical = 9:16.
+   Em monitor de teste com orientação oposta, o canvas é centralizado com barras pretas. */
+.player-root.landscape .stage{
+  width:min(100vw, calc(100vh * 16 / 9));
+  height:min(100vh, calc(100vw * 9 / 16));
+  left:50%; top:50%; right:auto; bottom:auto;
+  transform:translate(-50%,-50%);
+}
+.player-root.portrait .stage{
+  width:min(100vw, calc(100vh * 9 / 16));
+  height:min(100vh, calc(100vw * 16 / 9));
+  left:50%; top:50%; right:auto; bottom:auto;
+  transform:translate(-50%,-50%);
+}
+.player-root.landscape .stage img,
+.player-root.landscape .stage video,
+.player-root.portrait .stage img,
+.player-root.portrait .stage video{
+  object-fit:contain;
+}
