@@ -1,13 +1,13 @@
 (function(){'use strict';
-const PLAYER_VERSION='4.18.0';
+const PLAYER_VERSION='4.19.0';
 const cfg=window.SUPABASE_CONFIG||{}, hasConfig=!!(cfg.url&&cfg.key&&!String(cfg.url).includes('SEU-PROJETO'));
 const root=document.getElementById('playerRoot'),stage=document.getElementById('stage'),status=document.getElementById('status'),empty=document.getElementById('empty'),emptyMessage=document.getElementById('emptyMessage'),startBtn=document.getElementById('startBtn'),fullscreenBtn=document.getElementById('fullscreenBtn');
 const p=new URLSearchParams(location.search), code=(p.get('code')||localStorage.getItem('vitrine_screen_code')||'TV-0001').trim(); localStorage.setItem('vitrine_screen_code',code);
 const pathOrientation=location.pathname.toLowerCase().includes('/portrait/')?'portrait':'';
-let db=null,screen=null,items=[],index=0,timer=null,heartbeatTimer=null,reloadTimer=null,reconnectTimer=null,watchdogTimer=null,lastPlaybackActivity=Date.now(),started=false,playlistSignature='',activePlaylistId=null,currentProof=null,syncBusy=false;
+let db=null,screen=null,items=[],index=0,timer=null,heartbeatTimer=null,reloadTimer=null,reconnectTimer=null,watchdogTimer=null,lastPlaybackActivity=Date.now(),started=false,playlistSignature='',activePlaylistId=null,currentProof=null,syncBusy=false,blackout=false;
 const platform=/Tizen|SMART-TV|SamsungBrowser/i.test(navigator.userAgent)?'Samsung/Tizen':(/Android|TCL|AFT|GoogleTV/i.test(navigator.userAgent)?'Android/Google TV/TCL':'Web');
 function applyOrientation(v){v=(v||'landscape').toLowerCase()==='portrait'?'portrait':'landscape';root.classList.remove('portrait','landscape');root.classList.add(v);document.documentElement.dataset.orientation=v}
-function setStatus(t,show=true){status.textContent=t+(code?' • '+code:'');status.classList.toggle('visible',show)} function showEmpty(m){emptyMessage.textContent=m;empty.hidden=false} function hideEmpty(){empty.hidden=true}
+function setStatus(t,show=true){status.textContent=t+(code?' • '+code:'');status.classList.toggle('visible',show&&!blackout)} function showEmpty(m){emptyMessage.textContent=m;empty.hidden=false} function hideEmpty(){empty.hidden=true}
 function clearStage(){if(timer)clearTimeout(timer);timer=null;stage.innerHTML='';lastPlaybackActivity=Date.now()}
 async function fs(){try{if(document.fullscreenElement)return;if(root.requestFullscreen)await root.requestFullscreen();else if(root.webkitRequestFullscreen)root.webkitRequestFullscreen()}catch(e){}}
 async function start(){started=true;startBtn.textContent='Reproduzindo';startBtn.disabled=true;await fs();playNext()} startBtn.onclick=start;fullscreenBtn.onclick=fs;document.onkeydown=e=>{if(e.key==='Enter'&&!started)start()};
@@ -16,7 +16,7 @@ async function cachedUrl(url){if(!url)return url;try{const cache=await caches.op
 async function prepareItems(rows){const normalized=normalize(rows);for(const x of normalized){if(String(x.url||'').startsWith('idb://'))x.playUrl=await localMediaUrl(x.url);else x.playUrl=x.url&&/^https?:/i.test(x.url)?await cachedUrl(x.url):x.url}return normalized.filter(x=>x.type==='text'||x.playUrl||x.url)}
 async function finishProof(){if(!db||!currentProof)return;try{await db.from('proof_of_play').update({ended_at:new Date().toISOString(),duration_seconds:Math.max(0,Math.round((Date.now()-currentProof.started)/1000))}).eq('id',currentProof.id)}catch(e){}currentProof=null}
 async function beginProof(x){await finishProof();if(!db||!screen||!x?.id)return;try{const {data}=await db.from('proof_of_play').insert({screen_id:screen.id,media_id:x.id,playlist_id:activePlaylistId,started_at:new Date().toISOString(),status:'played'}).select('id').maybeSingle();if(data?.id)currentProof={id:data.id,started:Date.now()}}catch(e){}}
-function playNext(){lastPlaybackActivity=Date.now();clearStage();if(!items.length){showEmpty('Nenhum conteúdo disponível para esta tela.');timer=setTimeout(playNext,5000);return}hideEmpty();const x=items[index%items.length];index=(index+1)%items.length;beginProof(x);const next=async()=>{await finishProof();playNext()};
+function playNext(){if(blackout){clearStage();hideEmpty();return}lastPlaybackActivity=Date.now();clearStage();if(!items.length){showEmpty('Nenhum conteúdo disponível para esta tela.');timer=setTimeout(playNext,5000);return}hideEmpty();const x=items[index%items.length];index=(index+1)%items.length;beginProof(x);const next=async()=>{await finishProof();playNext()};
  if(x.type==='video'){const v=document.createElement('video');v.src=x.playUrl||x.url;v.autoplay=true;v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');stage.appendChild(v);let done=false;const once=()=>{if(done)return;done=true;next()};v.onended=once;v.onerror=()=>setTimeout(once,1000);v.play().catch(()=>{startBtn.disabled=false;startBtn.textContent='Toque/OK para iniciar'});timer=setTimeout(once,Math.max(5,x.duration||30)*1000)}
  else if(x.type==='image'){const img=document.createElement('img');img.src=x.playUrl||x.url;img.alt=x.text||'Conteúdo';stage.appendChild(img);timer=setTimeout(next,Math.max(2,x.duration||8)*1000)}
  else if(x.type==='web'){const f=document.createElement('iframe');f.src=x.playUrl||x.url;f.allow='autoplay; fullscreen';f.style.border='0';stage.appendChild(f);timer=setTimeout(next,Math.max(5,x.duration||15)*1000)}
@@ -24,11 +24,16 @@ function playNext(){lastPlaybackActivity=Date.now();clearStage();if(!items.lengt
 function dayToken(d){return ['Dom','Seg','Ter','Qua','Qui','Sex','Sab'][d.getDay()]}
 function timeHHMM(d){return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 function scheduleMatches(s,now){const iso=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'),t=timeHHMM(now);if(s.active===false)return false;if(s.start_date&&iso<s.start_date)return false;if(s.end_date&&iso>s.end_date)return false;const st=String(s.start_time||'').slice(0,5),et=String(s.end_time||'').slice(0,5);if(st&&et&&st<=et){if(t<st||t>et)return false}else if(st&&et&&st>et){if(t>et&&t<st)return false}else{if(st&&t<st)return false;if(et&&t>et)return false}const days=String(s.days||'').split(',').map(x=>x.trim()).filter(Boolean);return !days.length||days.includes(dayToken(now))}
-async function resolvePlaylist(){if(!db||!screen)return screen?.playlist_id||null;try{const {data,error}=await db.from('schedules').select('*').eq('active',true);if(error)throw error;const now=new Date();const matches=(data||[]).filter(s=>(s.screen_id===screen.id||(screen.group_id&&s.group_id===screen.group_id))&&scheduleMatches(s,now));matches.sort((a,b)=>Number(b.screen_id===screen.id)-Number(a.screen_id===screen.id)||new Date(b.created_at)-new Date(a.created_at));return matches[0]?.playlist_id||screen.playlist_id||null}catch(e){return screen.playlist_id||null}}
+async function resolvePlaylist(){if(!db||!screen)return {pid:screen?.playlist_id||null,blackout:false};try{const {data,error}=await db.from('schedules').select('*').eq('active',true);if(error)throw error;const relevant=(data||[]).filter(s=>s.screen_id===screen.id||(screen.group_id&&s.group_id===screen.group_id));if(!relevant.length)return {pid:screen.playlist_id||null,blackout:false};const now=new Date();const matches=relevant.filter(s=>scheduleMatches(s,now));matches.sort((a,b)=>Number(b.screen_id===screen.id)-Number(a.screen_id===screen.id)||new Date(b.created_at)-new Date(a.created_at));return matches.length?{pid:matches[0].playlist_id||screen.playlist_id||null,blackout:false}:{pid:null,blackout:true}}catch(e){return {pid:screen.playlist_id||null,blackout:false}}}
 async function heartbeat(){if(!db||!screen)return;const now=new Date().toISOString();try{await db.from('screens').update({status:'online',ultima_conexao:now,player_version:PLAYER_VERSION,last_error:null}).eq('id',screen.id);await db.from('screen_heartbeat').insert({screen_id:screen.id,last_ping:now,player_version:PLAYER_VERSION})}catch(e){setStatus('Sem sincronização • '+platform,true)}}
 async function loadPlaylist(){
  if(!db||!screen)return false;
- const pid=await resolvePlaylist();
+ const resolved=await resolvePlaylist();
+ const pid=resolved.pid;
+ if(resolved.blackout){
+   blackout=true;root.classList.add('blackout');items=[];activePlaylistId=null;playlistSignature='BLACKOUT';await finishProof();clearStage();hideEmpty();status.classList.remove('visible');document.getElementById('controls')?.classList.remove('visible');return false
+ }
+ if(blackout){blackout=false;root.classList.remove('blackout');playlistSignature='';}
  if(!pid){items=[];activePlaylistId=null;playlistSignature='';showEmpty('Nenhuma playlist vinculada à tela '+code+'.');return false}
  const {data:pi,error:piError}=await db.from('playlist_items').select('id,playlist_id,media_id,sort_order,duration,transition').eq('playlist_id',pid).order('sort_order',{ascending:true});
  if(piError)throw new Error('playlist_items: '+piError.message);

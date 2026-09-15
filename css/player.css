@@ -53,3 +53,8 @@ html,body{margin:0!important;padding:0!important;width:100%;height:100%;backgrou
   .player-root .stage img,.player-root .stage video{width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:contain!important}
   .hud,.controls,.player-controls,.status,.badge,.btn-fullscreen{display:none!important}
 }
+
+/* V4.19 - fora do horario: aparência de tela desligada */
+.player-root.blackout{background:#000!important;cursor:none!important}
+.player-root.blackout .stage{background:#000!important}
+.player-root.blackout .status,.player-root.blackout .controls,.player-root.blackout .empty{display:none!important}
