@@ -1,10 +1,10 @@
 (function(){'use strict';
-const PLAYER_VERSION='4.16.1';
+const PLAYER_VERSION='4.17.0';
 const cfg=window.SUPABASE_CONFIG||{}, hasConfig=!!(cfg.url&&cfg.key&&!String(cfg.url).includes('SEU-PROJETO'));
 const root=document.getElementById('playerRoot'),stage=document.getElementById('stage'),status=document.getElementById('status'),empty=document.getElementById('empty'),emptyMessage=document.getElementById('emptyMessage'),startBtn=document.getElementById('startBtn'),fullscreenBtn=document.getElementById('fullscreenBtn');
 const p=new URLSearchParams(location.search), code=(p.get('code')||localStorage.getItem('vitrine_screen_code')||'TV-0001').trim(); localStorage.setItem('vitrine_screen_code',code);
 const pathOrientation=location.pathname.toLowerCase().includes('/portrait/')?'portrait':'';
-let db=null,screen=null,items=[],index=0,timer=null,heartbeatTimer=null,reloadTimer=null,started=false,playlistSignature='',activePlaylistId=null,currentProof=null;
+let db=null,screen=null,items=[],index=0,timer=null,heartbeatTimer=null,reloadTimer=null,reconnectTimer=null,started=false,playlistSignature='',activePlaylistId=null,currentProof=null,syncBusy=false;
 const platform=/Tizen|SMART-TV|SamsungBrowser/i.test(navigator.userAgent)?'Samsung/Tizen':(/Android|TCL|AFT|GoogleTV/i.test(navigator.userAgent)?'Android/Google TV/TCL':'Web');
 function applyOrientation(v){v=(v||'landscape').toLowerCase()==='portrait'?'portrait':'landscape';root.classList.remove('portrait','landscape');root.classList.add(v);document.documentElement.dataset.orientation=v}
 function setStatus(t,show=true){status.textContent=t+(code?' • '+code:'');status.classList.toggle('visible',show)} function showEmpty(m){emptyMessage.textContent=m;empty.hidden=false} function hideEmpty(){empty.hidden=true}
@@ -12,7 +12,7 @@ function clearStage(){if(timer)clearTimeout(timer);timer=null;stage.innerHTML=''
 async function fs(){try{if(document.fullscreenElement)return;if(root.requestFullscreen)await root.requestFullscreen();else if(root.webkitRequestFullscreen)root.webkitRequestFullscreen()}catch(e){}}
 async function start(){started=true;startBtn.textContent='Reproduzindo';startBtn.disabled=true;await fs();playNext()} startBtn.onclick=start;fullscreenBtn.onclick=fs;document.onkeydown=e=>{if(e.key==='Enter'&&!started)start()};
 function normalize(rows){return(rows||[]).map(r=>{const m=r.media||r;return{id:m.id,type:m.type||'text',url:m.file_url||'',text:m.text_content||m.name||'',duration:Number(r.duration||m.duration||8),transition:r.transition||'fade'}}).filter(x=>(x.type==='text')||x.url)}
-async function cachedUrl(url){if(!url)return url;try{const cache=await caches.open('vitrine-media-v49');let res=await cache.match(url);if(!res){res=await fetch(url,{mode:'cors',cache:'no-cache'});if(res.ok)await cache.put(url,res.clone())}if(res&&res.ok){const blob=await res.blob();return URL.createObjectURL(blob)}}catch(e){}return url}
+async function cachedUrl(url){if(!url)return url;try{const cache=await caches.open('vitrine-media-v417');let res=await cache.match(url);if(!res){res=await fetch(url,{mode:'cors',cache:'no-cache'});if(res.ok)await cache.put(url,res.clone())}if(res&&res.ok){const blob=await res.blob();return URL.createObjectURL(blob)}}catch(e){}return url}
 async function prepareItems(rows){const normalized=normalize(rows);for(const x of normalized){if(String(x.url||'').startsWith('idb://'))x.playUrl=await localMediaUrl(x.url);else x.playUrl=x.url&&/^https?:/i.test(x.url)?await cachedUrl(x.url):x.url}return normalized.filter(x=>x.type==='text'||x.playUrl||x.url)}
 async function finishProof(){if(!db||!currentProof)return;try{await db.from('proof_of_play').update({ended_at:new Date().toISOString(),duration_seconds:Math.max(0,Math.round((Date.now()-currentProof.started)/1000))}).eq('id',currentProof.id)}catch(e){}currentProof=null}
 async function beginProof(x){await finishProof();if(!db||!screen||!x?.id)return;try{const {data}=await db.from('proof_of_play').insert({screen_id:screen.id,media_id:x.id,playlist_id:activePlaylistId,started_at:new Date().toISOString(),status:'played'}).select('id').maybeSingle();if(data?.id)currentProof={id:data.id,started:Date.now()}}catch(e){}}
@@ -63,6 +63,28 @@ async function loadDemo(){
  if(!items.length){showEmpty('A playlist vinculada está vazia.');return false}
  return true
 }
+
+async function syncRemote(){
+ if(syncBusy||!db||!screen)return; syncBusy=true;
+ try{await loadPlaylist();setStatus((navigator.onLine===false?'Offline':'Online')+' • '+platform+' • v'+PLAYER_VERSION,true)}
+ catch(e){console.error('SYNC',e);setStatus('Sem sincronização • cache ativo • '+platform+' • v'+PLAYER_VERSION,true)}
+ finally{syncBusy=false}
+}
+async function reconnect(){
+ if(!hasConfig||navigator.onLine===false)return;
+ try{
+  if(!db)db=window.supabase.createClient(cfg.url,cfg.key,{auth:{persistSession:false,autoRefreshToken:false}});
+  if(!screen){const {data,error}=await db.from('screens').select('*').eq('code',code).eq('active',true).maybeSingle();if(error)throw error;if(data){screen=data;applyOrientation(data.orientation||pathOrientation||p.get('orientation')||'landscape')}}
+  if(screen){await syncRemote();await heartbeat()}
+ }catch(e){console.error('RECONNECT',e)}
+}
+function installResilience(){
+ window.addEventListener('offline',()=>setStatus('Offline • conteúdo em cache • '+platform+' • v'+PLAYER_VERSION,true));
+ window.addEventListener('online',()=>{setStatus('Reconectando • '+platform+' • v'+PLAYER_VERSION,true);reconnect()});
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)reconnect()});
+ reconnectTimer=setInterval(()=>{if(navigator.onLine!==false)reconnect()},60000);
+}
+
 async function boot(){
  applyOrientation(pathOrientation||p.get('orientation')||'landscape');
  setStatus('Conectando • '+platform+' • v'+PLAYER_VERSION,true);
@@ -77,7 +99,7 @@ async function boot(){
    const ok=await loadPlaylist();
    setStatus('Online • '+platform+' • v'+PLAYER_VERSION,true);
    heartbeat(); heartbeatTimer=setInterval(heartbeat,30000);
-   reloadTimer=setInterval(async()=>{try{await loadPlaylist()}catch(e){console.error(e);setStatus('Online • erro de sincronização • v'+PLAYER_VERSION,true)}},30000);
+   reloadTimer=setInterval(syncRemote,30000);
    if(ok)start();
  }catch(e){
    console.error('PLAYER BOOT',e);
@@ -87,5 +109,5 @@ async function boot(){
    if(ok)setTimeout(()=>{if(!started)start()},300);
  }
 }
-window.addEventListener('beforeunload',finishProof);boot();
+window.addEventListener('beforeunload',finishProof);installResilience();boot();
 })();
