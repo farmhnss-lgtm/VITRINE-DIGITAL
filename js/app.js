@@ -248,3 +248,11 @@ if(logoutBtn)logoutBtn.onclick=async()=>{
     location.replace('login.html');
   }catch(e){console.error('logout',e);alert('Não foi possível sair: '+(e?.message||e));}
 };
+
+
+// 4.25 — atalho "Mais" da barra inferior abre o menu completo
+const mobileMoreBtn=qs('#mobileMoreBtn');
+if(mobileMoreBtn) mobileMoreBtn.onclick=()=>{
+  document.body.classList.add('mobile-nav-open');
+  const b=qs('#mobileMenuBtn'); if(b) b.setAttribute('aria-expanded','true');
+};

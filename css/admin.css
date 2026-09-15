@@ -88,3 +88,19 @@ body.monitor-focus .monitor-grid{grid-template-columns:repeat(auto-fill,minmax(2
   .top-actions .badge{display:none}
   .section-head h1{font-size:27px}
 }
+
+
+/* 4.25 — Mobile Operacional: navegação inferior e uso com uma mão */
+.mobile-bottom-nav{display:none}
+@media(max-width:700px){
+  .content{padding-bottom:calc(92px + env(safe-area-inset-bottom))}
+  .mobile-bottom-nav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;z-index:45;left:0;right:0;bottom:0;padding:6px 6px calc(6px + env(safe-area-inset-bottom));background:#07111ff2;border-top:1px solid var(--line);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+  .mobile-bottom-nav button{border:0;background:transparent;color:var(--muted);min-width:0;min-height:50px;border-radius:10px;display:grid;place-items:center;align-content:center;gap:2px;padding:4px 2px}
+  .mobile-bottom-nav button:active{background:#10243a;color:#fff}
+  .mobile-bottom-nav span{font-size:20px;line-height:1}
+  .mobile-bottom-nav small{font-size:10px;white-space:nowrap}
+  body.mobile-nav-open .mobile-bottom-nav{visibility:hidden}
+  .section-head p{font-size:13px;line-height:1.35}
+  .quick button{min-height:48px;font-size:15px}
+  .mini{align-items:center;min-height:58px}
+}
