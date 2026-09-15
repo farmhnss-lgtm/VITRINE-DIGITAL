@@ -1,12 +1,14 @@
 (function(){'use strict';
-const PLAYER_VERSION='4.30.0';
+const PLAYER_VERSION='4.31.1';
 const cfg=window.SUPABASE_CONFIG||{}, hasConfig=!!(cfg.url&&cfg.key&&!String(cfg.url).includes('SEU-PROJETO'));
 const root=document.getElementById('playerRoot'),stage=document.getElementById('stage'),status=document.getElementById('status'),empty=document.getElementById('empty'),emptyMessage=document.getElementById('emptyMessage'),startBtn=document.getElementById('startBtn'),fullscreenBtn=document.getElementById('fullscreenBtn');
 const p=new URLSearchParams(location.search), code=(p.get('code')||localStorage.getItem('vitrine_screen_code')||'TV-0001').trim(); localStorage.setItem('vitrine_screen_code',code);
 const pathOrientation=location.pathname.toLowerCase().includes('/portrait/')?'portrait':'';
 let db=null,screen=null,items=[],index=0,timer=null,heartbeatTimer=null,reloadTimer=null,reconnectTimer=null,watchdogTimer=null,lastPlaybackActivity=Date.now(),started=false,playlistSignature='',activePlaylistId=null,currentProof=null,syncBusy=false,blackout=false,activeSyncGroup=null;
 const platform=/Tizen|SMART-TV|SamsungBrowser/i.test(navigator.userAgent)?'Samsung/Tizen':(/Android|TCL|AFT|GoogleTV/i.test(navigator.userAgent)?'Android/Google TV/TCL':'Web');
-function applyOrientation(v){v=(v||'landscape').toLowerCase()==='portrait'?'portrait':'landscape';root.classList.remove('portrait','landscape');root.classList.add(v);document.documentElement.dataset.orientation=v}
+const isSamsungTizen=/Tizen|SMART-TV|SamsungBrowser/i.test(navigator.userAgent), tvMode=isSamsungTizen||p.get('tv')==='1'||p.get('kiosk')==='1';
+if(tvMode){document.documentElement.classList.add('tv-mode');root.classList.add('kiosk');}
+function applyOrientation(v){v=String(v||'landscape').toLowerCase();v=(v==='portrait'||v==='vertical'||v==='9:16')?'portrait':'landscape';root.classList.remove('portrait','landscape');root.classList.add(v);document.documentElement.dataset.orientation=v}
 function setStatus(t,show=true){status.textContent=t+(code?' • '+code:'');status.classList.toggle('visible',show&&!blackout)} function showEmpty(m){emptyMessage.textContent=m;empty.hidden=false} function hideEmpty(){empty.hidden=true}
 function clearStage(){if(timer)clearTimeout(timer);timer=null;stage.innerHTML='';lastPlaybackActivity=Date.now()}
 async function fs(){try{if(document.fullscreenElement)return;if(root.requestFullscreen)await root.requestFullscreen();else if(root.webkitRequestFullscreen)root.webkitRequestFullscreen()}catch(e){}}
@@ -105,8 +107,24 @@ function registerServiceWorker(){
  navigator.serviceWorker.register('../sw.js').catch(e=>console.warn('SW',e));
 }
 
+async function enableTvMode(){
+ if(!tvMode)return;
+ document.documentElement.classList.add('tv-mode');root.classList.add('kiosk');
+ try{if(screen?.orientation!=='portrait'&&screen?.orientation!=='vertical')applyOrientation('landscape')}catch(e){}
+ try{if(document.documentElement.requestFullscreen&&!document.fullscreenElement)await document.documentElement.requestFullscreen()}catch(e){}
+ try{if('wakeLock' in navigator)await navigator.wakeLock.request('screen')}catch(e){}
+}
+function installTvControls(){
+ if(!tvMode)return;
+ const activate=()=>enableTvMode();
+ document.addEventListener('click',activate,{once:true});
+ document.addEventListener('keydown',e=>{if(['Enter','MediaPlayPause','ColorF0Red'].includes(e.key))activate()});
+ window.addEventListener('resize',()=>{root.style.width='100vw';root.style.height='100vh'});
+}
+
 async function boot(){
  applyOrientation(pathOrientation||p.get('orientation')||'landscape');
+ installTvControls();
  setStatus('Conectando • '+platform+' • v'+PLAYER_VERSION,true);
  if(!hasConfig){const ok=await loadDemo();if(ok)start();return}
  try{
@@ -115,7 +133,7 @@ async function boot(){
    const {data,error}=await db.from('screens').select('*').eq('code',code).eq('active',true).maybeSingle();
    if(error)throw new Error('screens: '+error.message);
    if(!data)throw new Error('Tela '+code+' não encontrada/ativa');
-   screen=data; applyOrientation(data.orientation||pathOrientation||p.get('orientation')||'landscape');
+   screen=data; applyOrientation(data.orientation||pathOrientation||p.get('orientation')||'landscape'); await enableTvMode();
    const ok=await loadPlaylist();
    setStatus('Online • '+platform+' • v'+PLAYER_VERSION,true);
    heartbeat(); heartbeatTimer=setInterval(heartbeat,15000);

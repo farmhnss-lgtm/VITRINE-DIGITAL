@@ -58,3 +58,22 @@ html,body{margin:0!important;padding:0!important;width:100%;height:100%;backgrou
 .player-root.blackout{background:#000!important;cursor:none!important}
 .player-root.blackout .stage{background:#000!important}
 .player-root.blackout .status,.player-root.blackout .controls,.player-root.blackout .empty{display:none!important}
+
+
+/* 4.31 — Samsung The Frame / Tizen TV mode */
+html.tv-mode,html.tv-mode body{width:100vw!important;height:100vh!important;min-width:100vw!important;min-height:100vh!important;overscroll-behavior:none!important}
+html.tv-mode body{position:fixed!important;inset:0!important;cursor:none!important;background:#000!important}
+html.tv-mode .player-root{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;background:#000!important;overflow:hidden!important}
+html.tv-mode .player-root .stage{position:absolute!important;inset:0!important;margin:0!important;max-width:none!important;max-height:none!important}
+html.tv-mode .player-root.landscape .stage{width:100vw!important;height:100vh!important;left:0!important;top:0!important;right:0!important;bottom:0!important;transform:none!important}
+html.tv-mode .player-root.landscape .stage img,html.tv-mode .player-root.landscape .stage video{width:100%!important;height:100%!important;object-fit:contain!important;background:#000!important}
+html.tv-mode .controls,html.tv-mode .status{display:none!important}
+html.tv-mode .empty{background:#000!important}
+@media (min-width:769px){html.tv-mode .player-root{touch-action:none}}
+
+
+/* 4.31.1 — The Frame instalada na vertical: canvas total + mídia preenchendo a tela */
+html.tv-mode .player-root.portrait .stage{position:absolute!important;inset:0!important;width:100vw!important;height:100vh!important;left:0!important;top:0!important;right:0!important;bottom:0!important;transform:none!important;margin:0!important;max-width:none!important;max-height:none!important}
+html.tv-mode .player-root.portrait .stage img,
+html.tv-mode .player-root.portrait .stage video{width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;object-position:center center!important;background:#000!important}
+html.tv-mode .player-root.portrait .stage iframe{width:100%!important;height:100%!important;border:0!important}
