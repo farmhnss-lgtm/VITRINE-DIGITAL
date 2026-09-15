@@ -116,7 +116,7 @@ async function boot(){
    screen=data; applyOrientation(data.orientation||pathOrientation||p.get('orientation')||'landscape');
    const ok=await loadPlaylist();
    setStatus('Online • '+platform+' • v'+PLAYER_VERSION,true);
-   heartbeat(); heartbeatTimer=setInterval(heartbeat,30000);
+   heartbeat(); heartbeatTimer=setInterval(heartbeat,15000);
    reloadTimer=setInterval(syncRemote,30000);
    if(ok)start();
  }catch(e){

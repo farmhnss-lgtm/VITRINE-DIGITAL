@@ -60,7 +60,7 @@ async function render(){
  renderScreens(screens,playlists);renderMedia(media);renderPlaylists(playlists,media,items);renderSchedules(schedules,playlists,screens,groups);renderGroups(groups,screens,playlists);renderDashboard(screens);renderMonitor(screens,playlists,media,items,schedules);renderReports();
 }
 
-function monitorIsOnline(s){const raw=s.ultima_conexao||s.last_seen||s.updated_at;const t=raw?new Date(raw).getTime():0;return !!t&&(Date.now()-t)<=90000}
+function monitorIsOnline(s){const raw=s.ultima_conexao||s.last_seen||s.updated_at;const t=raw?new Date(raw).getTime():0;return !!t&&(Date.now()-t)<=45000}
 function monitorAgo(raw){if(!raw)return 'Nunca conectado';const sec=Math.max(0,Math.floor((Date.now()-new Date(raw).getTime())/1000));if(sec<60)return 'agora';const min=Math.floor(sec/60);if(min<60)return `há ${min} min`;const h=Math.floor(min/60);if(h<24)return `há ${h} h`;return `há ${Math.floor(h/24)} dia(s)`}
 function monitorScheduleMatches(sc,screen,now){if(sc.active===false)return false;if(sc.screen_id!==screen.id&&!(screen.group_id&&sc.group_id===screen.group_id))return false;const iso=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');if(sc.start_date&&iso<sc.start_date)return false;if(sc.end_date&&iso>sc.end_date)return false;const day=['Dom','Seg','Ter','Qua','Qui','Sex','Sab'][now.getDay()],days=String(sc.days||'').split(',').map(x=>x.trim()).filter(Boolean);if(days.length&&!days.includes(day))return false;const t=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),st=String(sc.start_time||'').slice(0,5),et=String(sc.end_time||'').slice(0,5);if(st&&et&&st<=et)return t>=st&&t<=et;if(st&&et)return t>=st||t<=et;if(st&&t<st)return false;if(et&&t>et)return false;return true}
 let monitorPreviewTimers=[];
@@ -237,7 +237,7 @@ render();bootLocalPlayer();
  document.querySelectorAll('[data-add-element]').forEach(b=>b.onclick=()=>add(b.dataset.addElement));canvas.onclick=()=>{selected=null;draw()};qs('#sceneOrientation').onchange=e=>{scene.orientation=e.target.value;draw()};qs('#saveSceneBtn').onclick=async()=>{localStorage.setItem('vd48_scene',JSON.stringify(scene));try{if(db){const name=prompt('Nome da cena:','Cena '+new Date().toLocaleDateString('pt-BR'))||'Cena';await insert('scenes',{name,orientation:scene.orientation,content:scene,duration:10,active:true});alert('Cena salva no Supabase e no cache local.')}else alert('Cena salva localmente. Conecte o Supabase para sincronizar.')}catch(err){console.error(err);alert('Cena salva localmente, mas houve erro ao sincronizar: '+err.message)}};qs('#newSceneBtn').onclick=()=>{if(confirm('Criar nova cena?')){scene={orientation:'landscape',elements:[]};selected=null;draw()}};qs('#clearSceneBtn').onclick=()=>{if(confirm('Limpar todos os elementos?')){scene.elements=[];selected=null;draw()}};qs('#previewSceneBtn').onclick=()=>{localStorage.setItem('vd48_scene',JSON.stringify(scene));window.open('../player/scene.html','_blank')};draw();
 })();
 
-setInterval(()=>{if(qs('#monitor')?.classList.contains('active')&&!document.querySelector('#modal:not(.hidden)'))render().catch(console.warn)},30000);
+setInterval(()=>{if(qs('#monitor')?.classList.contains('active')&&!document.querySelector('#modal:not(.hidden)'))render().catch(console.warn)},15000);
 
 
 // 4.21 — logout real do painel remoto
