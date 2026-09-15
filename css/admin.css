@@ -29,3 +29,14 @@
 .monitor-live-box{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden}
 .monitor-live-box img,.monitor-live-box video{width:100%;height:100%;object-fit:contain;background:#000}
 .monitor-live-text{padding:14px;text-align:center;font-size:13px;line-height:1.35;color:#fff}
+
+/* 4.23 — Central Operacional */
+.monitor-alert{margin:0 0 12px;padding:10px 13px;border:1px solid #7a4b24;background:#3b2715;color:#ffd9a0;border-radius:10px}
+.monitor-alert.hidden{display:none}
+.monitor-card:has(.monitor-state.offline){border-color:#6f2c39;box-shadow:0 0 0 1px #6f2c3955,0 8px 30px #0003}
+body.monitor-focus .sidebar{display:none}
+body.monitor-focus .content{max-width:none;padding:16px 22px}
+body.monitor-focus #monitor .section-head{margin-bottom:12px}
+body.monitor-focus #monitor .monitor-note{display:none}
+body.monitor-focus .monitor-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+@media(min-width:1500px){body.monitor-focus .monitor-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
