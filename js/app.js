@@ -248,15 +248,3 @@ if(logoutBtn)logoutBtn.onclick=async()=>{
     location.replace('login.html');
   }catch(e){console.error('logout',e);alert('Não foi possível sair: '+(e?.message||e));}
 };
-
-
-// 4.24 — navegação responsiva para celular
-(function setupResponsiveMenu(){
-  const btn=qs('#mobileMenuBtn'), sidebar=document.querySelector('.sidebar'), backdrop=qs('#sidebarBackdrop');
-  if(!btn||!sidebar||!backdrop)return;
-  const setOpen=(open)=>{sidebar.classList.toggle('mobile-open',open);backdrop.classList.toggle('open',open);btn.setAttribute('aria-expanded',String(open));btn.textContent=open?'×':'☰';};
-  btn.addEventListener('click',()=>setOpen(!sidebar.classList.contains('mobile-open')));
-  backdrop.addEventListener('click',()=>setOpen(false));
-  sidebar.addEventListener('click',e=>{if(e.target.closest('.nav')&&window.innerWidth<=760)setOpen(false);});
-  window.addEventListener('resize',()=>{if(window.innerWidth>760)setOpen(false);});
-})();
