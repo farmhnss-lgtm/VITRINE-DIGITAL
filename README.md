@@ -27,3 +27,6 @@ Plataforma de sinalização digital para TVs, monitores e totens, com painel web
 
 ## Observação
 A arquitetura é original. Ela busca oferecer um conjunto de funções equivalente às plataformas profissionais de digital signage, sem copiar código ou interface proprietária de terceiros.
+
+## Engenharia 4.9
+Consulte `CHANGELOG_4.9_ENGENHARIA.md` e execute `supabase/migration_4.9.sql` antes de testar telemetria/cenas no Supabase.
