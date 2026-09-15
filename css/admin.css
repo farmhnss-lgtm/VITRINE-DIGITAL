@@ -140,3 +140,28 @@ body.monitor-focus .monitor-grid{grid-template-columns:repeat(auto-fill,minmax(2
   .content{padding-bottom:calc(92px + env(safe-area-inset-bottom))!important}
 }
 \n\n/* 4.27 — Telas e Programação em cards no celular; PC permanece tabela */\n@media(max-width:700px){\n  #screens .table-wrap,#schedules .table-wrap{margin:0!important;padding:0!important;background:transparent!important;border:0!important;overflow:visible!important}\n  #screens table,#schedules table{min-width:0!important;width:100%!important;display:block!important}\n  #screens thead,#schedules thead{display:none!important}\n  #screens tbody,#schedules tbody{display:grid!important;gap:12px!important}\n  #screens tr,#schedules tr{display:block!important;background:var(--panel)!important;border:1px solid var(--line)!important;border-radius:14px!important;padding:12px!important}\n  #screens td,#schedules td{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:14px!important;width:100%!important;padding:8px 2px!important;border:0!important;border-bottom:1px solid #18314a!important;text-align:right!important;background:transparent!important;position:static!important;box-shadow:none!important}\n  #screens td:last-child,#schedules td:last-child{border-bottom:0!important;padding-top:11px!important}\n  #screens td::before,#schedules td::before{content:attr(data-label);color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:left;flex:0 0 84px}\n  #screens td[data-label=\"Tela\"],#schedules td[data-label=\"Programação\"]{font-size:16px;text-align:right!important}\n  #screens td[data-label=\"Ações\"],#schedules td[data-label=\"Ações\"]{align-items:center!important}\n  #screens td[data-label=\"Ações\"] .action-row,#schedules td[data-label=\"Ações\"] .action-row{justify-content:flex-end;flex:1}\n  #screens tbody tr:has(td[colspan]),#schedules tbody tr:has(td[colspan]){padding:16px}\n  #screens td[colspan]::before,#schedules td[colspan]::before{display:none}\n}\n
+/* 4.28 — Biblioteca Mobile: pré-visualização rápida e cards otimizados */
+.media-preview-trigger{position:relative;cursor:pointer}
+.media-preview-trigger:focus{outline:2px solid var(--cyan);outline-offset:-2px}
+.media-preview-badge{position:absolute;right:8px;bottom:8px;padding:4px 7px;border-radius:8px;background:#07111fdd;border:1px solid #31506e;color:#dbeaff;font-size:10px;font-weight:700;opacity:0;transition:.15s}
+.media-preview-trigger:hover .media-preview-badge,.media-preview-trigger:focus .media-preview-badge{opacity:1}
+.media-preview-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+@media(max-width:700px){
+  #media .section-head{display:grid;grid-template-columns:1fr auto;align-items:center}
+  #media .section-head>div{min-width:0}
+  #media .section-head h1{font-size:25px}
+  #media .section-head>.btn{min-height:44px;padding:9px 11px;font-size:12px}
+  #media .toolbar{display:grid;grid-template-columns:1fr 118px;gap:8px;position:sticky;top:72px;z-index:8;background:#07111ff2;padding:8px 0;margin-bottom:10px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  #media .toolbar input,#media .toolbar select{min-width:0;margin:0}
+  #media .media-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  #media .media-card{padding:0;border-radius:13px}
+  #media .thumb{height:auto;aspect-ratio:1/1;border-bottom:1px solid var(--line)}
+  #media .media-info{padding:10px}
+  #media .media-info strong{font-size:13px;line-height:1.25;min-height:32px;overflow-wrap:anywhere}
+  #media .media-info .tag{display:inline-block;margin:2px 1px 0 0;font-size:9px}
+  #media .media-info .action-row{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px!important}
+  #media .media-info .btn{min-height:36px!important;padding:6px!important;font-size:10px!important}
+  #media .media-preview-badge{opacity:1;font-size:9px;padding:3px 6px}
+  .media-preview-modal img,.media-preview-modal video{border-radius:10px}
+}
+@media(max-width:360px){#media .media-grid{grid-template-columns:1fr}}
