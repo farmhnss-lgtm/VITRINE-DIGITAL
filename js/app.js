@@ -1,4 +1,4 @@
-/* Vitrine Digital PRO 4.40 — Editor IA · Etapa 1 */
+/* Vitrine Digital PRO 4.40.1 — Editor IA · cache corrigido */
 const cfg=window.SUPABASE_CONFIG||{};const hasSupabase=!!(cfg.url&&cfg.key&&!cfg.url.includes('SEU-PROJETO'));const db=hasSupabase&&window.supabase?window.supabase.createClient(cfg.url,cfg.key):null;
 const blank={screens:[],media:[],playlists:[],playlist_items:[],schedules:[],groups:[],events:[],scenes:[]};
 const demo={};for(const k of Object.keys(blank))demo[k]=JSON.parse(localStorage.getItem('vd3_'+k)||'[]');
