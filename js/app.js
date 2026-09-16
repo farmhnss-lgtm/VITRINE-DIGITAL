@@ -1,4 +1,4 @@
-/* Vitrine Digital PRO 4.40.1 — Editor IA · cache corrigido */
+/* Vitrine Digital PRO 4.41.1 — Editor IA · chamada direta + diagnóstico */
 const cfg=window.SUPABASE_CONFIG||{};const hasSupabase=!!(cfg.url&&cfg.key&&!cfg.url.includes('SEU-PROJETO'));const db=hasSupabase&&window.supabase?window.supabase.createClient(cfg.url,cfg.key):null;
 const blank={screens:[],media:[],playlists:[],playlist_items:[],schedules:[],groups:[],events:[],scenes:[]};
 const demo={};for(const k of Object.keys(blank))demo[k]=JSON.parse(localStorage.getItem('vd3_'+k)||'[]');
@@ -282,22 +282,29 @@ render();bootLocalPlayer();
   selected=scene.elements[0]?.id||null;draw();localStorage.setItem('vd48_scene',JSON.stringify(scene));
  }
  async function callEditorAI(action,prompt,selectedText=''){
-  if(!db?.functions?.invoke)throw new Error('Backend de IA ainda não configurado.');
-  const {data,error}=await db.functions.invoke('editor-ai',{body:{action,prompt,selectedText,orientation:scene.orientation}});
-  if(error)throw error;if(!data?.ok)throw new Error(data?.error||'A IA não retornou uma resposta válida.');return data;
+  if(!hasSupabase||!cfg.url||!cfg.key)throw new Error('Configuração do Supabase não encontrada no painel.');
+  const endpoint=String(cfg.url).replace(/\/$/,'')+'/functions/v1/editor-ai';
+  let response;
+  try{
+   response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','apikey':cfg.key,'Authorization':'Bearer '+cfg.key},body:JSON.stringify({action,prompt,selectedText,orientation:scene.orientation})});
+  }catch(e){throw new Error('Falha de rede ao acessar editor-ai: '+(e?.message||e));}
+  let data=null;const raw=await response.text();
+  try{data=raw?JSON.parse(raw):null}catch(e){throw new Error('Resposta inválida da editor-ai (HTTP '+response.status+').');}
+  if(!response.ok||!data?.ok)throw new Error(data?.error||('editor-ai retornou HTTP '+response.status));
+  return data;
  }
  async function buildAiLayout(){
   const prompt=qs('#aiEditorPrompt')?.value||'';if(!prompt.trim()){alert('Descreva o que você quer criar.');return}
   const st=qs('#aiEditorStatus'),btn=qs('#aiBuildLayoutBtn');if(btn){btn.disabled=true;btn.textContent='✦ Criando…'}if(st)st.textContent='Preparando sua arte…';
   try{const data=await callEditorAI('layout',prompt);applyAiLayout(data.layout);if(st)st.textContent='✦ Layout criado pela IA. Revise, arraste os elementos e salve a cena.';}
-  catch(err){console.warn('Editor IA fallback',err);const copy=aiText(prompt);applyAiLayout({copy,prompt});if(st)st.textContent='Modo local usado. Para IA real, publique a função editor-ai e configure OPENAI_API_KEY.';}
+  catch(err){console.error('Editor IA',err);const copy=aiText(prompt);applyAiLayout({copy,prompt});if(st)st.textContent='IA indisponível: '+(err?.message||err)+' · modo local aplicado.';}
   finally{if(btn){btn.disabled=false;btn.textContent='✦ Criar com IA'}}
  }
  async function improveSelectedText(){
   const el=scene.elements.find(x=>x.id===selected);if(!el||el.type!=='text'){alert('Selecione um elemento de texto no editor.');return}let v=String(el.content||'').trim();if(!v)return;
   const st=qs('#aiEditorStatus'),btn=qs('#aiImproveTextBtn');if(btn){btn.disabled=true;btn.textContent='Melhorando…'}
   try{const data=await callEditorAI('improve','Melhore este texto para digital signage, curto e impactante.',v);el.content=String(data.text||v);draw();if(st)st.textContent='✦ Texto melhorado pela IA.';}
-  catch(err){v=v.replace(/\s+/g,' ');if(v.length<42&&!/[.!?]$/.test(v))v+='!';el.content=v;draw();if(st)st.textContent='Texto ajustado localmente. Backend de IA ainda não configurado.';}
+  catch(err){console.error('Editor IA texto',err);v=v.replace(/\s+/g,' ');if(v.length<42&&!/[.!?]$/.test(v))v+='!';el.content=v;draw();if(st)st.textContent='IA indisponível: '+(err?.message||err)+' · texto ajustado localmente.';}
   finally{if(btn){btn.disabled=false;btn.textContent='Melhorar texto selecionado'}}
  }
  document.querySelectorAll('[data-ai-preset]').forEach(b=>b.onclick=()=>{const p=qs('#aiEditorPrompt');if(!p)return;const x=b.dataset.aiPreset;p.value=x==='promo'?'Crie uma promoção vertical com título forte, preço em destaque e chamada Compre agora':x==='institucional'?'Crie uma arte institucional elegante com título, mensagem curta e chamada Saiba mais':'Crie uma oferta visual com nome do item, destaque principal e chamada Peça agora';p.focus()});
