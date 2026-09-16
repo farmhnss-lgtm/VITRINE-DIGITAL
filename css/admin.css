@@ -377,3 +377,6 @@ body{min-height:100dvh;-webkit-text-size-adjust:100%}
 /* 4.49 — Diretor Criativo / orquestração */
 .ai-director-plan{margin:12px 0;padding:13px;border:1px solid #315b7c;border-radius:12px;background:#0b1d30;display:grid;gap:6px}.ai-director-plan strong{color:#dff3ff}.ai-director-plan small{color:var(--muted);line-height:1.4}.ai-plan-concept{color:#8fd4ff;font-weight:700}.ai-director-btn{grid-column:1/-1}
 @media(max-width:700px){#editor .ai-editor-actions{display:grid!important;grid-template-columns:1fr 1fr!important}#editor .ai-editor-actions .ai-director-btn{grid-column:1/-1!important}}
+
+/* 4.51 - seleção de conceitos visuais */
+.ai-generated-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 12px}.ai-choice{border:2px solid transparent;border-radius:10px;padding:4px;background:#0b1c2d;color:#fff;cursor:pointer}.ai-choice.selected{border-color:#27b8ff}.ai-choice img{width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:7px;display:block}.ai-choice span{display:block;font-size:12px;padding:5px 2px}.ai-generated-choices+#aiGeneratedImage{max-height:62vh}@media(max-width:520px){.ai-generated-choices{gap:5px}.ai-choice{padding:3px}.ai-choice span{font-size:11px}}
