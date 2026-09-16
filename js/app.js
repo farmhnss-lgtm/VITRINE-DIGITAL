@@ -338,7 +338,8 @@ render();bootLocalPlayer();
   return [
    p.image_prompt||'',
    `CAMPAIGN CONCEPT: ${p.concept||''}`,
-   `USER REQUEST / BUSINESS CONTEXT: ${userPrompt}`,
+   `VISUAL SUBJECT CONTEXT ONLY: ${p.concept||'professional commercial campaign'}`,
+   `Do not reproduce the business name or any wording from the campaign brief inside the photograph.`,
    `Create ONLY the photographic/background layer. The Vitrine Digital application will add every title, subtitle and CTA later.`,
    `ABSOLUTE TYPOGRAPHY BAN: zero text anywhere in the generated image. No words, letters, numbers, captions, headlines, CTA, signage, menu, price, logo, watermark, brand mark or typographic symbols.`,
    `Any signs, screens, labels, posters, packaging or printed surfaces must be blank, abstract, unreadable, out of focus, turned away, or outside the frame.`,
@@ -361,7 +362,7 @@ render();bootLocalPlayer();
     const results=[];
     for(let variant=1;variant<=3;variant++){
      if(st)st.textContent=`Criando conceito visual ${variant} de 3…`;
-     const data=await callEditorAI('folder',visualPrompt,'','portrait','',variant);let src=folderSrc(data.folder);if(!src)continue;src=await forcePortrait916(src);const rawSrc=src;src=await composeDirectorOverlay(rawSrc);results.push({src,rawSrc,mime:'image/jpeg',prompt,kind:'folder',variant,model:data.model});
+     const data=await callEditorAI('folder',visualPrompt,'','portrait','',variant);let src=folderSrc(data.folder);if(!src)continue;src=await forcePortrait916(src);const rawSrc=src;results.push({src:rawSrc,rawSrc,mime:'image/jpeg',prompt,kind:'folder',variant,model:data.model});
     }
     if(!results.length)throw new Error('A IA não retornou opções utilizáveis.');showAiChoices(results);selectAiChoice(results[0],0);if(st)st.textContent=`✦ ${results.length} conceitos criados com FLUX.2 Klein. Toque na opção que melhor representa a campanha.`;vdToast('Conceitos visuais prontos para escolher.','success');
    }
@@ -389,7 +390,7 @@ render();bootLocalPlayer();
   openModal('Salvar conteúdo da IA',`<form id="aiPublishForm" class="form"><label>Nome do conteúdo<input name="name" maxlength="120" required value="${esc(defaultName)}"></label><label>Adicionar à playlist agora<select name="playlist_id"><option value="">Somente salvar em Conteúdos</option>${playlists.map(p=>`<option value="${esc(p.id)}">${esc(p.name||'Playlist')}</option>`).join('')}</select></label><p class="muted">Você pode salvar somente em Conteúdos ou já colocar a nova arte em uma playlist.</p><div class="mobile-form-actions"><button type="button" class="btn ghost" data-modal-cancel>Cancelar</button><button class="btn" type="submit">Salvar conteúdo</button></div></form>`);
   const form=qs('#aiPublishForm');if(!form)return;
   form.onsubmit=async e=>{e.preventDefault();const fd=new FormData(form),name=String(fd.get('name')||'').trim(),playlistId=String(fd.get('playlist_id')||'');if(!name)return;const submit=form.querySelector('button[type="submit"]');vdBusy(submit,true,'Salvando…');const st=qs('#aiEditorStatus');try{
-    let url=aiGenerated.src;if(url.startsWith('data:')&&db){const file=dataUrlToFile(url,'ia-'+Date.now()+'.png');url=await uploadFile(file)}
+    let url=aiGenerated.rawSrc&&aiDirectorPlan?await composeDirectorOverlay(aiGenerated.rawSrc):aiGenerated.src;if(url.startsWith('data:')&&db){const file=dataUrlToFile(url,'ia-'+Date.now()+'.png');url=await uploadFile(file)}
     const media=await insert('media',{name,type:'image',file_url:url,text_content:null,duration:10,active:true,local_session_only:false});
     if(playlistId){const rows=db?await load('playlist_items'):(demo.playlist_items||[]);const n=rows.filter(i=>String(i.playlist_id)===playlistId).length;await insert('playlist_items',{playlist_id:playlistId,media_id:media.id,sort_order:n});}
     closeModal();await render();if(st)st.textContent=playlistId?'✓ Conteúdo salvo e adicionado à playlist.':'✓ Conteúdo salvo em Conteúdos.';vdToast(playlistId?'Conteúdo salvo e adicionado à playlist.':'Conteúdo salvo com sucesso.','success');
