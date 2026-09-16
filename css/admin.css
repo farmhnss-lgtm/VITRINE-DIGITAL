@@ -272,3 +272,35 @@ body.monitor-focus .monitor-grid{grid-template-columns:repeat(auto-fill,minmax(2
  #editor .scene-props input,#editor .scene-props select{min-height:40px!important;font-size:15px!important}
 }
 @media(max-width:390px){#editor .scene-canvas.portrait{width:min(100%,270px)!important}#editor .ai-editor-actions .btn{font-size:10px!important}}
+
+
+/* 4.44 — Estúdio IA: IA primeiro, edição manual simplificada */
+#editor .ai-studio-main{max-width:980px;margin-left:auto;margin-right:auto}
+#editor .quick-editor{max-width:980px;margin:0 auto;border:1px solid var(--line);border-radius:14px;background:rgba(8,21,34,.65);overflow:hidden}
+#editor .quick-editor>summary,#editor .add-elements>summary{cursor:pointer;list-style:none;font-weight:800;padding:14px 16px;user-select:none}
+#editor .quick-editor>summary::-webkit-details-marker,#editor .add-elements>summary::-webkit-details-marker{display:none}
+#editor .quick-editor>summary:after,#editor .add-elements>summary:after{content:'⌄';float:right;color:var(--muted)}
+#editor .quick-editor[open]>summary:after,#editor .add-elements[open]>summary:after{content:'⌃'}
+#editor .quick-editor>.editor-top{padding:0 14px 12px;margin:0}
+#editor .quick-editor>.editor-shell{padding:0 14px 14px;display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:12px}
+#editor .quick-editor .editor-workspace{min-height:560px}
+#editor .add-elements{grid-column:1/-1;padding:0!important}
+#editor .add-elements .editor-tools{padding:0 12px 12px;grid-template-columns:repeat(5,1fr)}
+#editor .props #aiImproveTextBtn{width:100%;margin-top:10px}
+#editor .ai-result-actions{justify-content:center}
+@media(max-width:700px){
+ #editor .section-head{grid-template-columns:1fr!important}
+ #editor .section-head>.action-row{width:100%}
+ #editor .ai-editor-actions{grid-template-columns:1fr 1fr!important}
+ #editor #aiCreateFolderBtn{grid-column:1/-1;font-size:13px!important;min-height:48px!important}
+ #editor .quick-editor{border-radius:12px}
+ #editor .quick-editor>summary{padding:12px;font-size:14px}
+ #editor .quick-editor>.editor-top{position:static!important;padding:0 10px 10px!important;background:transparent!important;backdrop-filter:none!important}
+ #editor .quick-editor>.editor-shell{display:flex!important;flex-direction:column!important;padding:0 10px 10px!important}
+ #editor .quick-editor .editor-workspace{order:1!important;min-height:0!important}
+ #editor .quick-editor .props{order:2!important}
+ #editor .quick-editor .add-elements{order:3!important}
+ #editor .add-elements .editor-tools{grid-template-columns:repeat(3,1fr)!important}
+ #editor .ai-result-actions{display:grid!important;grid-template-columns:1fr 1fr!important}
+ #editor .ai-result-actions .btn{width:100%!important}
+}
