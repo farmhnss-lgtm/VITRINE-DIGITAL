@@ -253,7 +253,7 @@ render();bootLocalPlayer();
  const canvas=qs('#sceneCanvas'),props=qs('#sceneProps'); if(!canvas||!props)return;
  let scene=JSON.parse(localStorage.getItem('vd48_scene')||'{"orientation":"landscape","elements":[]}'), selected=null;
  const sid=()=>uid();
- function draw(){canvas.classList.toggle('portrait',scene.orientation==='portrait');qs('#sceneOrientation').value=scene.orientation;canvas.innerHTML=scene.elements.map(el=>`<div class="scene-element ${selected===el.id?'selected':''}" data-scene-id="${el.id}" style="left:${el.x}%;top:${el.y}%;width:${el.w}%;height:${el.h}%;${el.type==='text'?'font-size:'+el.size+'px;color:'+el.color+';':''}">${el.type==='text'?`<div class="scene-text">${esc(el.content)}</div>`:el.type==='image'?`<img src="${esc(el.content)}" alt="Imagem">`:el.type==='video'?`<div>▶ VÍDEO</div>`:el.type==='qrcode'?`<div style="font-size:34px">▦<br><small>QR</small></div>`:`<div class="scene-text">${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>`}</div>`).join('');wire();renderProps()}
+ function draw(){canvas.classList.toggle('portrait',scene.orientation==='portrait');qs('#sceneOrientation').value=scene.orientation;canvas.innerHTML=scene.elements.map(el=>{const mobileSize=Math.max(9,Math.min(42,Number(el.size||32)*(canvas.clientWidth||320)/(scene.orientation==='portrait'?360:760)));return `<div class="scene-element ${selected===el.id?'selected':''}" data-scene-id="${el.id}" style="left:${el.x}%;top:${el.y}%;width:${el.w}%;height:${el.h}%;${el.type==='text'?'font-size:'+el.size+'px;--mobile-font-size:'+mobileSize+'px;color:'+el.color+';':''}">${el.type==='text'?`<div class="scene-text">${esc(el.content)}</div>`:el.type==='image'?`<img src="${esc(el.content)}" alt="Imagem">`:el.type==='video'?`<div>▶ VÍDEO</div>`:el.type==='qrcode'?`<div style="font-size:34px">▦<br><small>QR</small></div>`:`<div class="scene-text">${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>`}</div>`}).join('');wire();renderProps()}
  function add(type){const defaults={text:'Sua mensagem',image:'https://placehold.co/800x450?text=Imagem',video:'video.mp4',qrcode:'https://exemplo.com',clock:'Relógio'};const el={id:sid(),type,content:defaults[type],x:10,y:10,w:type==='text'?45:35,h:type==='text'?18:35,size:36,color:'#ffffff'};scene.elements.push(el);selected=el.id;draw()}
  function wire(){canvas.querySelectorAll('[data-scene-id]').forEach(node=>{node.onclick=e=>{e.stopPropagation();selected=node.dataset.sceneId;draw()};node.onpointerdown=e=>{if(e.button!==0)return;selected=node.dataset.sceneId;const el=scene.elements.find(x=>x.id===selected),r=canvas.getBoundingClientRect(),sx=e.clientX,sy=e.clientY,ox=el.x,oy=el.y;node.setPointerCapture?.(e.pointerId);node.onpointermove=ev=>{if(!node.hasPointerCapture?.(e.pointerId))return;el.x=Math.max(0,Math.min(100-el.w,ox+(ev.clientX-sx)/r.width*100));el.y=Math.max(0,Math.min(100-el.h,oy+(ev.clientY-sy)/r.height*100));node.style.left=el.x+'%';node.style.top=el.y+'%'};node.onpointerup=()=>{draw()}}})}
  function renderProps(){const el=scene.elements.find(x=>x.id===selected);if(!el){props.innerHTML='<p class="muted">Selecione um elemento.</p>';return}props.innerHTML=`<label>Conteúdo<input id="propContent" value="${esc(el.content)}"></label><label>Largura %<input id="propW" type="number" min="5" max="100" value="${el.w}"></label><label>Altura %<input id="propH" type="number" min="5" max="100" value="${el.h}"></label>${el.type==='text'?`<label>Tamanho<input id="propSize" type="number" min="12" max="120" value="${el.size}"></label><label>Cor<input id="propColor" type="color" value="${el.color}"></label>`:''}<button id="deleteElementBtn" class="btn danger">Excluir elemento</button>`;['propContent','propW','propH','propSize','propColor'].forEach(id=>{const n=qs('#'+id);if(n)n.oninput=()=>{if(id==='propContent')el.content=n.value;if(id==='propW')el.w=Number(n.value);if(id==='propH')el.h=Number(n.value);if(id==='propSize')el.size=Number(n.value);if(id==='propColor')el.color=n.value;draw()}});qs('#deleteElementBtn').onclick=()=>{scene.elements=scene.elements.filter(x=>x.id!==selected);selected=null;draw()}}
@@ -271,7 +271,7 @@ render();bootLocalPlayer();
   const safe=layout&&typeof layout==='object'?layout:{};
   const els=Array.isArray(safe.elements)?safe.elements:[];
   if(els.length){
-   scene.elements=els.slice(0,10).map((x,i)=>({id:sid(),type:['text','image'].includes(x.type)?x.type:'text',content:String(x.content||''),x:Math.max(0,Math.min(95,Number(x.x??10))),y:Math.max(0,Math.min(95,Number(x.y??(10+i*15)))),w:Math.max(5,Math.min(100,Number(x.w??80))),h:Math.max(5,Math.min(100,Number(x.h??12))),size:Math.max(12,Math.min(120,Number(x.size??32))),color:/^#[0-9a-f]{6}$/i.test(x.color||'')?x.color:'#ffffff'}));
+   scene.elements=els.slice(0,10).map((x,i)=>{const w=Math.max(5,Math.min(100,Number(x.w??80))),h=Math.max(5,Math.min(100,Number(x.h??12)));return {id:sid(),type:['text','image'].includes(x.type)?x.type:'text',content:String(x.content||''),x:Math.max(0,Math.min(100-w,Number(x.x??10))),y:Math.max(0,Math.min(100-h,Number(x.y??(10+i*15)))),w,h,size:Math.max(12,Math.min(scene.orientation==='portrait'?72:84,Number(x.size??32))),color:/^#[0-9a-f]{6}$/i.test(x.color||'')?x.color:'#ffffff'}});
   }else{
    const copy=safe.copy||aiText(safe.prompt||'');scene.elements=[];
    scene.elements.push({id:sid(),type:'text',content:copy.title||'OFERTA ESPECIAL',x:8,y:portrait?10:12,w:84,h:16,size:portrait?48:42,color:'#ffffff'});
@@ -281,12 +281,12 @@ render();bootLocalPlayer();
   }
   selected=scene.elements[0]?.id||null;draw();localStorage.setItem('vd48_scene',JSON.stringify(scene));
  }
- async function callEditorAI(action,prompt,selectedText=''){
+ async function callEditorAI(action,prompt,selectedText='',orientationOverride=''){
   if(!hasSupabase||!cfg.url||!cfg.key)throw new Error('Configuração do Supabase não encontrada no painel.');
   const endpoint=String(cfg.url).replace(/\/$/,'')+'/functions/v1/editor-ai';
   let response;
   try{
-   response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','apikey':cfg.key,'Authorization':'Bearer '+cfg.key},body:JSON.stringify({action,prompt,selectedText,orientation:scene.orientation})});
+   response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','apikey':cfg.key,'Authorization':'Bearer '+cfg.key},body:JSON.stringify({action,prompt,selectedText,orientation:orientationOverride||scene.orientation})});
   }catch(e){throw new Error('Falha de rede ao acessar editor-ai: '+(e?.message||e));}
   let data=null;const raw=await response.text();
   try{data=raw?JSON.parse(raw):null}catch(e){throw new Error('Resposta inválida da editor-ai (HTTP '+response.status+').');}
@@ -307,7 +307,7 @@ render();bootLocalPlayer();
   const st=qs('#aiEditorStatus'),btn=qs(kind==='image'?'#aiCreatePhotoBtn':'#aiCreateFolderBtn');const original=btn?.textContent||'';
   if(btn){btn.disabled=true;btn.textContent='Gerando…'}if(st)st.textContent=kind==='image'?'Criando foto com IA…':'Criando conteúdo para o totem…';
   try{
-   const data=await callEditorAI(kind==='image'?'image':'folder',prompt);const src=folderSrc(data.folder);if(!src)throw new Error('A IA não retornou uma imagem utilizável.');
+   if(kind!=='image'){scene.orientation='portrait';draw();localStorage.setItem('vd48_scene',JSON.stringify(scene));}const data=await callEditorAI(kind==='image'?'image':'folder',prompt,'',kind==='image'?scene.orientation:'portrait');const src=folderSrc(data.folder);if(!src)throw new Error('A IA não retornou uma imagem utilizável.');
    aiGenerated={src,mime:data.folder?.mime||'image/png',prompt,kind};const img=qs('#aiGeneratedImage'),box=qs('#aiGeneratedPreview');if(img)img.src=src;if(box)box.style.display='block';
    if(st)st.textContent=kind==='image'?'✦ Foto criada. Revise e salve em Conteúdos.':'✦ Conteúdo criado para o totem. Revise e salve em Conteúdos.';
   }catch(err){console.error('Editor IA imagem',err);if(st)st.textContent='Erro ao gerar imagem: '+(err?.message||err);}
