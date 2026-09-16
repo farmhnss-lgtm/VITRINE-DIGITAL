@@ -294,3 +294,30 @@ body.monitor-focus .monitor-grid{grid-template-columns:repeat(auto-fill,minmax(2
   .section-head>.btn{width:100%}
   #monitor .monitor-stats{grid-template-columns:1fr 1fr!important}
 }
+
+/* 4.32.2 — Mobile Compacto: mais área útil sem alterar a navegação aprovada */
+@media(max-width:700px){
+  #dashboard .section-head{margin-bottom:12px}
+  #dashboard .section-head h1{font-size:24px;line-height:1.05;margin-bottom:4px}
+  #dashboard .section-head p{font-size:11px;line-height:1.3}
+  #dashboard .cards{gap:8px;margin-bottom:12px}
+  #dashboard .card{padding:11px;border-radius:13px}
+  #dashboard .stat{min-height:112px;display:flex;flex-direction:column;justify-content:center}
+  #dashboard .stat span{font-size:11px;line-height:1.15}
+  #dashboard .stat strong{font-size:27px;line-height:1;margin:7px 0}
+  #dashboard .stat small{font-size:10px;line-height:1.15}
+  #dashboard .grid2{gap:10px}
+  #dashboard .grid2>.card{padding:12px}
+  #dashboard .card h2{font-size:16px;line-height:1.2;margin-bottom:10px}
+  #dashboard .mini-list{gap:7px}
+  #dashboard .mini{min-height:50px;padding:8px 10px;border-radius:9px}
+  #dashboard .mini strong{font-size:13px;line-height:1.2}
+  #dashboard .mini small{font-size:10px;line-height:1.2}
+  #dashboard .quick{gap:7px}
+  #dashboard .quick button{min-height:42px;padding:9px 10px;font-size:13px;border-radius:9px}
+}
+@media(max-width:390px){
+  #dashboard .cards{grid-template-columns:1fr 1fr!important}
+  #dashboard .stat{min-height:104px}
+  #dashboard .stat strong{font-size:25px}
+}
