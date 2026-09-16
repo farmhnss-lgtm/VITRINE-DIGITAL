@@ -405,3 +405,10 @@ body.monitor-focus .monitor-grid{grid-template-columns:repeat(auto-fill,minmax(2
   #groups .action-row{grid-template-columns:1fr!important}
   #groups .action-row .btn:last-child:nth-child(odd){grid-column:auto}
 }
+
+
+/* 4.33 — Operação Profissional */
+.monitor-health{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin:8px 0;padding:8px 9px;border:1px solid var(--line);border-radius:9px;background:#081522;font-size:11px}
+.monitor-health span{color:var(--muted);text-align:right}.monitor-health.ok{border-color:#1f6d49}.monitor-health.ok b{color:#67e7a1}.monitor-health.warning{border-color:#7a5c24}.monitor-health.warning b{color:#ffd27a}.monitor-health.offline{border-color:#6f2c39}.monitor-health.offline b{color:#ff9eaa}
+.health-panel{display:grid;gap:10px}.health-panel p{margin:0;padding:9px 0;border-bottom:1px solid var(--line)}.health-big{font-size:22px;font-weight:900;padding:12px;border:1px solid var(--line);border-radius:10px;background:#081522}
+@media(max-width:600px){#monitor .monitor-health{font-size:11px;flex-direction:column}#monitor .monitor-health span{text-align:left}#monitor .monitor-actions{grid-template-columns:1fr 1fr!important}#monitor .monitor-actions .btn:first-child{grid-column:1/-1}}
