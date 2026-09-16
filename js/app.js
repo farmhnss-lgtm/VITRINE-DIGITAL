@@ -335,14 +335,15 @@ render();bootLocalPlayer();
  let aiGenerated=null;
  function directorVisualPrompt(userPrompt){
   const p=aiDirectorPlan||{};
-  if(!p.image_prompt)return userPrompt;
   return [
-   p.image_prompt,
+   p.image_prompt||'',
    `CAMPAIGN CONCEPT: ${p.concept||''}`,
    `USER REQUEST / BUSINESS CONTEXT: ${userPrompt}`,
-   `VISUAL MUST CLEARLY REPRESENT THE CAMPAIGN SUBJECT AND BUSINESS. Do not return an empty generic interior when the campaign is about a person, service, product or transformation. Show a strong campaign-relevant focal subject/action when appropriate.`,
-   `Keep intentional negative space for these exact overlay texts, but DO NOT render them inside the generated image: headline=${p.headline||''}; support=${p.support||''}; CTA=${p.cta||''}.`,
-   `Portrait digital signage composition. No words, letters, logos, prices, watermarks or fake brand marks.`
+   `Create ONLY the photographic/background layer. The Vitrine Digital application will add every title, subtitle and CTA later.`,
+   `ABSOLUTE TYPOGRAPHY BAN: zero text anywhere in the generated image. No words, letters, numbers, captions, headlines, CTA, signage, menu, price, logo, watermark, brand mark or typographic symbols.`,
+   `Any signs, screens, labels, posters, packaging or printed surfaces must be blank, abstract, unreadable, out of focus, turned away, or outside the frame.`,
+   `Clearly represent the campaign subject and business with a strong relevant focal subject. Do not use an empty generic room when the campaign is about a person, service, product or transformation.`,
+   `Portrait 9:16 premium commercial photography. Reserve clean negative space near the top and bottom for typography that will be added later by the application.`
   ].filter(Boolean).join('\n');
  }
  function folderSrc(folder){if(!folder)return'';if(folder.uri)return folder.uri;if(folder.data)return `data:${folder.mime||'image/png'};base64,${folder.data}`;return''}
