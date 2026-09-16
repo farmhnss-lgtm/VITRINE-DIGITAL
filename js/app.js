@@ -1,9 +1,12 @@
+/* Vitrine Digital PRO 4.45 — consolidação segura do Admin; Player não alterado */
 /* Vitrine Digital PRO 4.41.1 — Editor IA · chamada direta + diagnóstico */
 const cfg=window.SUPABASE_CONFIG||{};const hasSupabase=!!(cfg.url&&cfg.key&&!cfg.url.includes('SEU-PROJETO'));const db=hasSupabase&&window.supabase?window.supabase.createClient(cfg.url,cfg.key):null;
 const blank={screens:[],media:[],playlists:[],playlist_items:[],schedules:[],groups:[],events:[],scenes:[]};
 const demo={};for(const k of Object.keys(blank))demo[k]=JSON.parse(localStorage.getItem('vd3_'+k)||'[]');
 const save=()=>Object.keys(demo).forEach(k=>localStorage.setItem('vd3_'+k,JSON.stringify(demo[k])));
 const qs=s=>document.querySelector(s), esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+function vdToast(message,type='info'){let n=qs('#vdToast');if(!n){n=document.createElement('div');n.id='vdToast';n.className='vd-toast';n.setAttribute('role','status');n.setAttribute('aria-live','polite');document.body.appendChild(n)}n.className='vd-toast '+type;n.textContent=message;n.classList.add('show');clearTimeout(vdToast._t);vdToast._t=setTimeout(()=>n.classList.remove('show'),3200)}
+function vdBusy(btn,busy,label='Processando…'){if(!btn)return;if(busy){if(!btn.dataset.vdLabel)btn.dataset.vdLabel=btn.textContent;btn.disabled=true;btn.setAttribute('aria-busy','true');btn.textContent=label}else{btn.disabled=false;btn.removeAttribute('aria-busy');btn.textContent=btn.dataset.vdLabel||btn.textContent;delete btn.dataset.vdLabel}}
 const uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random();
 const LOCAL_MEDIA_DB='vitrine_local_media_v1',LOCAL_MEDIA_STORE='files';
 function localMediaDb(){return new Promise((resolve,reject)=>{const r=indexedDB.open(LOCAL_MEDIA_DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(LOCAL_MEDIA_STORE))r.result.createObjectStore(LOCAL_MEDIA_STORE)};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
@@ -305,20 +308,20 @@ render();bootLocalPlayer();
  async function generateAiImage(kind){
   const prompt=qs('#aiEditorPrompt')?.value||'';if(!prompt.trim()){alert('Descreva o conteúdo que você quer criar.');return}
   const st=qs('#aiEditorStatus'),btn=qs(kind==='image'?'#aiCreatePhotoBtn':'#aiCreateFolderBtn');const original=btn?.textContent||'';
-  if(btn){btn.disabled=true;btn.textContent='Gerando…'}if(st)st.textContent=kind==='image'?'Criando foto com IA…':'Criando conteúdo para o totem…';
+  vdBusy(btn,true,'Gerando…');if(st)st.textContent=kind==='image'?'Criando foto com IA…':'Criando conteúdo para o totem…';
   try{
    if(kind!=='image'){scene.orientation='portrait';draw();localStorage.setItem('vd48_scene',JSON.stringify(scene));}const data=await callEditorAI(kind==='image'?'image':'folder',prompt,'',kind==='image'?scene.orientation:'portrait');const src=folderSrc(data.folder);if(!src)throw new Error('A IA não retornou uma imagem utilizável.');
    aiGenerated={src,mime:data.folder?.mime||'image/png',prompt,kind};const img=qs('#aiGeneratedImage'),box=qs('#aiGeneratedPreview');if(img)img.src=src;if(box)box.style.display='block';
-   if(st)st.textContent=kind==='image'?'✦ Foto criada. Revise e salve em Conteúdos.':'✦ Conteúdo criado para o totem. Revise e salve em Conteúdos.';
+   if(st)st.textContent=kind==='image'?'✦ Foto criada. Revise e salve em Conteúdos.':'✦ Conteúdo criado para o totem. Revise e salve em Conteúdos.';vdToast(kind==='image'?'Foto criada com sucesso.':'Arte 9:16 criada com sucesso.','success');
   }catch(err){console.error('Editor IA imagem',err);if(st)st.textContent='Erro ao gerar imagem: '+(err?.message||err);}
-  finally{if(btn){btn.disabled=false;btn.textContent=original}}
+  finally{vdBusy(btn,false);if(btn&&original)btn.textContent=original}
  }
  function dataUrlToFile(dataUrl,name){const [head,b64]=dataUrl.split(',');const mime=(head.match(/data:([^;]+)/)||[])[1]||'image/png';const bin=atob(b64);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new File([bytes],name,{type:mime})}
  async function saveAiContent(){
   if(!aiGenerated)return alert('Gere uma imagem primeiro.');const st=qs('#aiEditorStatus');try{
    let url=aiGenerated.src;if(url.startsWith('data:')&&db){const file=dataUrlToFile(url,'ia-'+Date.now()+'.png');url=await uploadFile(file)}
    const name=(prompt('Nome do conteúdo:','Conteúdo IA '+new Date().toLocaleDateString('pt-BR'))||'').trim();if(!name)return;
-   await insert('media',{name,type:'image',file_url:url,text_content:null,duration:10,active:true,local_session_only:false});await render();if(st)st.textContent='✓ Conteúdo salvo. Agora ele já pode ser adicionado a uma playlist.';alert('Conteúdo salvo com sucesso!');
+   await insert('media',{name,type:'image',file_url:url,text_content:null,duration:10,active:true,local_session_only:false});await render();if(st)st.textContent='✓ Conteúdo salvo. Agora ele já pode ser adicionado a uma playlist.';vdToast('Conteúdo salvo com sucesso.','success');
   }catch(err){console.error(err);if(st)st.textContent='Erro ao salvar: '+(err?.message||err);alert('Erro ao salvar conteúdo: '+(err?.message||err))}
  }
  function useAiInScene(){if(!aiGenerated)return alert('Gere uma imagem primeiro.');scene.elements=[{id:sid(),type:'image',content:aiGenerated.src,x:0,y:0,w:100,h:100,size:32,color:'#ffffff'}];selected=scene.elements[0].id;draw();localStorage.setItem('vd48_scene',JSON.stringify(scene));}
