@@ -373,3 +373,7 @@ body{min-height:100dvh;-webkit-text-size-adjust:100%}
 .ai-reference-card{display:grid;gap:12px;padding:14px;border:1px dashed var(--border,#d7dce3);border-radius:14px;background:rgba(127,127,127,.04)}
 .ai-reference-card p{margin:4px 0 0}.ai-reference-picker{width:max-content;max-width:100%;cursor:pointer}.ai-reference-preview{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center}.ai-reference-preview img{width:96px;height:128px;object-fit:contain;background:#111;border-radius:10px}.ai-reference-preview>div{display:grid;gap:8px;min-width:0}.ai-reference-preview strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:700px){.ai-reference-picker{width:100%;justify-content:center}.ai-reference-preview{grid-template-columns:76px 1fr}.ai-reference-preview img{width:76px;height:104px}.ai-editor-actions #aiTransformReferenceBtn{order:-1}}
+
+/* 4.49 — Diretor Criativo / orquestração */
+.ai-director-plan{margin:12px 0;padding:13px;border:1px solid #315b7c;border-radius:12px;background:#0b1d30;display:grid;gap:6px}.ai-director-plan strong{color:#dff3ff}.ai-director-plan small{color:var(--muted);line-height:1.4}.ai-plan-concept{color:#8fd4ff;font-weight:700}.ai-director-btn{grid-column:1/-1}
+@media(max-width:700px){#editor .ai-editor-actions{display:grid!important;grid-template-columns:1fr 1fr!important}#editor .ai-editor-actions .ai-director-btn{grid-column:1/-1!important}}
