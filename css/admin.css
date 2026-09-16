@@ -351,3 +351,20 @@ body{min-height:100dvh;-webkit-text-size-adjust:100%}
   .modal{padding:10px}.modal-box{max-height:calc(100dvh - 20px);padding:18px 14px}
   input,select,textarea{font-size:16px!important}
 }
+
+/* 4.46.1 — Correção global dos modais mobile / iOS
+   O rodapé pertence ao fluxo do formulário e não pode cobrir Grupo, dias da semana ou outros campos. */
+@media(max-width:700px){
+  .modal{z-index:90!important;align-items:flex-end!important;padding:0!important;overflow:hidden!important}
+  .modal-box{height:min(92dvh,820px)!important;max-height:92dvh!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:0!important}
+  .modal-box>#modalTitle{position:relative!important;flex:0 0 auto!important;z-index:3!important}
+  #modalBody{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch!important;padding:14px 14px calc(16px + env(safe-area-inset-bottom))!important;scroll-padding-bottom:96px!important}
+  #modalBody>.form,#modalBody>form.form{min-height:0!important;padding-bottom:0!important}
+  .mobile-form-actions{position:sticky!important;left:0!important;right:0!important;bottom:0!important;z-index:10!important;margin:12px -14px calc(-16px - env(safe-area-inset-bottom))!important;padding:10px 14px calc(10px + env(safe-area-inset-bottom))!important;background:#0b1828!important;border-top:1px solid var(--line)!important;box-shadow:0 -8px 20px #0006!important}
+  .check-row{padding-bottom:2px!important}
+  #scheduleForm .check-row{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important}
+  #scheduleForm .check-row label{min-width:0!important;justify-content:center!important;padding:8px 5px!important}
+}
+@media(max-width:390px){
+  #scheduleForm .check-row{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+}
