@@ -1,4 +1,4 @@
-/* Vitrine Digital PRO 5.0 — Future Signage Foundation; Player legado preservado */
+/* Vitrine Digital PRO 5.0.3 — Upload resumível TUS para vídeos grandes; Player preservado */
 /* Vitrine Digital PRO 4.41.1 — Editor IA · chamada direta + diagnóstico */
 const cfg=window.SUPABASE_CONFIG||{};const hasSupabase=!!(cfg.url&&cfg.key&&!cfg.url.includes('SEU-PROJETO'));const db=hasSupabase&&window.supabase?window.supabase.createClient(cfg.url,cfg.key):null;
 const blank={screens:[],media:[],playlists:[],playlist_items:[],schedules:[],groups:[],events:[],scenes:[]};
@@ -232,7 +232,22 @@ function openSchedule(id){
  },{capture:true});
 }
 function openGroup(id){const g=id?(demo.groups.find(x=>x.id===id)||null):null;openModal(g?'Gerenciar grupo':'Novo grupo',`<form id="groupForm" class="form"><input type="hidden" name="id" value="${esc(g?.id||'')}"><label>Nome<input name="name" required value="${esc(g?.name||'')}" placeholder="Loja / Totens"></label><label>Conteúdo sincronizado (playlist)<select name="playlist_id"><option value="">Nenhuma</option>${demo.playlists.map(p=>`<option value="${p.id}" ${g?.playlist_id===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select><small class="muted">Todas as telas marcadas usarão esta playlist e serão alinhadas pelo mesmo relógio.</small></label><div><span class="muted">Telas do grupo</span><div class="check-row">${demo.screens.map(s=>`<label><input type="checkbox" name="screen_ids" value="${s.id}" ${s.group_id===g?.id?'checked':''}>${esc(s.name)}</label>`).join('')}</div></div><div class="mobile-form-actions"><button type="button" class="btn ghost" data-modal-cancel>Cancelar</button><button class="btn" type="submit">Salvar grupo</button></div></form>`)}
-async function uploadFile(file){if(!file)return '';if(!db){if(file.type.startsWith('image/')&&file.size<=2*1024*1024)return await fileToDataUrl(file);throw new Error('No modo local, apenas imagens até 2 MB podem ser armazenadas. Conecte o Supabase para vídeos e arquivos maiores.')}const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');const path=`${Date.now()}-${uid()}-${safe}`;const {error}=await db.storage.from('media').upload(path,file,{upsert:false,contentType:file.type});if(error)throw error;return db.storage.from('media').getPublicUrl(path).data.publicUrl}
+function tusB64(v){return btoa(unescape(encodeURIComponent(String(v||''))))}
+async function uploadFileResumable(file,path){
+ const {data:{session}}=await db.auth.getSession();
+ const token=session?.access_token||cfg.key;
+ if(!token)throw new Error('Sessão do Supabase indisponível. Entre novamente e tente o envio.');
+ const projectUrl=new URL(cfg.url),host=projectUrl.hostname.replace('.supabase.co','.storage.supabase.co');
+ const endpoint=`${projectUrl.protocol}//${host}/storage/v1/upload/resumable`;
+ const metadata=[['bucketName','media'],['objectName',path],['contentType',file.type||'application/octet-stream'],['cacheControl','3600']].map(([k,v])=>`${k} ${tusB64(v)}`).join(',');
+ const create=await fetch(endpoint,{method:'POST',headers:{Authorization:`Bearer ${token}`,apikey:cfg.key,'Tus-Resumable':'1.0.0','Upload-Length':String(file.size),'Upload-Metadata':metadata,'x-upsert':'false'}});
+ if(!create.ok)throw new Error(`Não foi possível iniciar o envio do vídeo (${create.status}).`);
+ let location=create.headers.get('Location');if(!location)throw new Error('O servidor não retornou o endereço do upload resumível.');if(location.startsWith('/'))location=`${projectUrl.protocol}//${host}${location}`;
+ const chunkSize=6*1024*1024;let offset=0;
+ while(offset<file.size){const end=Math.min(offset+chunkSize,file.size),chunk=file.slice(offset,end);vdToast(`Enviando vídeo… ${Math.round(offset/file.size*100)}%`,'info');const r=await fetch(location,{method:'PATCH',headers:{Authorization:`Bearer ${token}`,apikey:cfg.key,'Tus-Resumable':'1.0.0','Upload-Offset':String(offset),'Content-Type':'application/offset+octet-stream'},body:chunk});if(!r.ok)throw new Error(`Falha durante o envio do vídeo (${r.status}). Tente novamente; nenhum conteúdo foi salvo.`);offset=Number(r.headers.get('Upload-Offset')||end)}
+ vdToast('Upload do vídeo concluído.','success');return db.storage.from('media').getPublicUrl(path).data.publicUrl
+}
+async function uploadFile(file){if(!file)return '';if(!db){if(file.type.startsWith('image/')&&file.size<=2*1024*1024)return await fileToDataUrl(file);throw new Error('No modo local, apenas imagens até 2 MB podem ser armazenadas. Conecte o Supabase para vídeos e arquivos maiores.')}const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');const path=`${Date.now()}-${uid()}-${safe}`;try{if(file.type.startsWith('video/')&&file.size>6*1024*1024)return await uploadFileResumable(file,path);const {error}=await db.storage.from('media').upload(path,file,{upsert:false,contentType:file.type});if(error)throw error;return db.storage.from('media').getPublicUrl(path).data.publicUrl}catch(e){const msg=String(e?.message||e||'');if(/maximum allowed size|exceeded|413|too large/i.test(msg))throw new Error('O vídeo é maior que o limite do envio simples. A Vitrine tentou o modo para arquivos grandes; atualize a página e tente novamente.');throw e}}
 async function fileToDataUrl(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})}
 
 document.addEventListener('submit',async e=>{const id=e.target.id;if(id==='screenForm')return;if(id==='mediaForm')return;if(id==='scheduleForm')return;if(!['playlistForm','groupForm'].includes(id))return;e.preventDefault();const f=new FormData(e.target);try{
