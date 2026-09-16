@@ -380,3 +380,8 @@ body{min-height:100dvh;-webkit-text-size-adjust:100%}
 
 /* 4.51 - seleção de conceitos visuais */
 .ai-generated-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 12px}.ai-choice{border:2px solid transparent;border-radius:10px;padding:4px;background:#0b1c2d;color:#fff;cursor:pointer}.ai-choice.selected{border-color:#27b8ff}.ai-choice img{width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:7px;display:block}.ai-choice span{display:block;font-size:12px;padding:5px 2px}.ai-generated-choices+#aiGeneratedImage{max-height:62vh}@media(max-width:520px){.ai-generated-choices{gap:5px}.ai-choice{padding:3px}.ai-choice span{font-size:11px}}
+
+/* v4.55 production stabilization */
+.dashboard-stat-link{appearance:none;-webkit-appearance:none;width:100%;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.dashboard-stat-link:hover,.dashboard-stat-link:focus-visible{transform:translateY(-1px);outline:2px solid rgba(56,189,248,.65);outline-offset:2px}
+#connectionBadge.connection-stale{color:#fbbf24;border-color:rgba(251,191,36,.55)}
