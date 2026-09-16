@@ -295,12 +295,12 @@ render();bootLocalPlayer();
   }
   selected=scene.elements[0]?.id||null;draw();localStorage.setItem('vd483_scene',JSON.stringify(scene));
  }
- async function callEditorAI(action,prompt,selectedText='',orientationOverride='',referenceImage=''){
+ async function callEditorAI(action,prompt,selectedText='',orientationOverride='',referenceImage='',variant=1){
   if(!hasSupabase||!cfg.url||!cfg.key)throw new Error('Configuração do Supabase não encontrada no painel.');
   const endpoint=String(cfg.url).replace(/\/$/,'')+'/functions/v1/editor-ai';
   let response;
   try{
-   const {data:{session}}=await db.auth.getSession();const bearer=session?.access_token||cfg.key;response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','apikey':cfg.key,'Authorization':'Bearer '+bearer},body:JSON.stringify({action,prompt,selectedText,orientation:orientationOverride||scene.orientation,referenceImage})});
+   const {data:{session}}=await db.auth.getSession();const bearer=session?.access_token||cfg.key;response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','apikey':cfg.key,'Authorization':'Bearer '+bearer},body:JSON.stringify({action,prompt,selectedText,orientation:orientationOverride||scene.orientation,referenceImage,variant})});
   }catch(e){throw new Error('Falha de rede ao acessar editor-ai: '+(e?.message||e));}
   let data=null;const raw=await response.text();
   try{data=raw?JSON.parse(raw):null}catch(e){throw new Error('Resposta inválida da editor-ai (HTTP '+response.status+').');}
@@ -350,14 +350,26 @@ render();bootLocalPlayer();
  async function generateAiImage(kind){
   const prompt=qs('#aiEditorPrompt')?.value||'';if(!prompt.trim()){alert('Descreva o conteúdo que você quer criar.');return}
   const st=qs('#aiEditorStatus'),btn=qs(kind==='image'?'#aiCreatePhotoBtn':'#aiCreateFolderBtn');const original=btn?.textContent||'';
-  vdBusy(btn,true,'Gerando…');if(st)st.textContent=kind==='image'?'Criando foto com IA…':'Criando conteúdo para o totem…';
+  vdBusy(btn,true,kind==='image'?'Gerando…':'Criando 3 opções…');if(st)st.textContent=kind==='image'?'Criando foto com IA…':'Criando 3 conceitos visuais para você escolher…';
   try{
-   if(kind!=='image'){scene.orientation='portrait';draw();localStorage.setItem('vd483_scene',JSON.stringify(scene));}const visualPrompt=directorVisualPrompt(prompt);const data=await callEditorAI(kind==='image'?'image':'folder',visualPrompt,'',kind==='image'?scene.orientation:'portrait');let src=folderSrc(data.folder);if(!src)throw new Error('A IA não retornou uma imagem utilizável.');if(kind!=='image')src=await forcePortrait916(src);
-   aiGenerated={src,mime:kind==='image'?(data.folder?.mime||'image/png'):'image/jpeg',prompt,kind};const img=qs('#aiGeneratedImage'),box=qs('#aiGeneratedPreview');if(img)img.src=src;if(box)box.style.display='block';
-   if(st)st.textContent=kind==='image'?'✦ Foto criada. Revise e salve em Conteúdos.':'✦ Conteúdo criado para o totem. Revise e salve em Conteúdos.';vdToast(kind==='image'?'Foto criada com sucesso.':'Arte 9:16 criada com sucesso.','success');
-  }catch(err){console.error('Editor IA imagem',err);if(st)st.textContent='Erro ao gerar imagem: '+(err?.message||err);}
+   if(kind!=='image'){scene.orientation='portrait';draw();localStorage.setItem('vd483_scene',JSON.stringify(scene));}
+   const visualPrompt=directorVisualPrompt(prompt);
+   if(kind==='image'){
+    const data=await callEditorAI('image',visualPrompt,'',scene.orientation,'',1);let src=folderSrc(data.folder);if(!src)throw new Error('A IA não retornou uma imagem utilizável.');aiGenerated={src,mime:data.folder?.mime||'image/jpeg',prompt,kind,model:data.model};showSingleAiResult(src);if(st)st.textContent='✦ Foto criada. Revise e salve em Conteúdos.';vdToast('Foto criada com sucesso.','success');
+   }else{
+    const results=[];
+    for(let variant=1;variant<=3;variant++){
+     if(st)st.textContent=`Criando conceito visual ${variant} de 3…`;
+     const data=await callEditorAI('folder',visualPrompt,'','portrait','',variant);let src=folderSrc(data.folder);if(!src)continue;src=await forcePortrait916(src);results.push({src,mime:'image/jpeg',prompt,kind:'folder',variant,model:data.model});
+    }
+    if(!results.length)throw new Error('A IA não retornou opções utilizáveis.');showAiChoices(results);selectAiChoice(results[0],0);if(st)st.textContent=`✦ ${results.length} conceitos criados com FLUX.2 Klein. Toque na opção que melhor representa a campanha.`;vdToast('Conceitos visuais prontos para escolher.','success');
+   }
+  }catch(err){console.error('Editor IA imagem',err);if(st)st.textContent='Erro ao gerar imagem: '+(err?.message||err);vdToast('Não foi possível gerar os conceitos.','error')}
   finally{vdBusy(btn,false);if(btn&&original)btn.textContent=original}
  }
+ function showSingleAiResult(src){const box=qs('#aiGeneratedPreview'),img=qs('#aiGeneratedImage');const choices=qs('#aiGeneratedChoices');if(choices)choices.remove();if(img){img.style.display='block';img.src=src}if(box)box.style.display='block'}
+ function selectAiChoice(item,index){aiGenerated=item;const img=qs('#aiGeneratedImage');if(img){img.src=item.src;img.style.display='block'}document.querySelectorAll('.ai-choice').forEach((b,i)=>b.classList.toggle('selected',i===index))}
+ function showAiChoices(items){const box=qs('#aiGeneratedPreview'),img=qs('#aiGeneratedImage');if(!box||!img)return;box.style.display='block';let old=qs('#aiGeneratedChoices');if(old)old.remove();const wrap=document.createElement('div');wrap.id='aiGeneratedChoices';wrap.className='ai-generated-choices';items.forEach((item,i)=>{const b=document.createElement('button');b.type='button';b.className='ai-choice'+(i===0?' selected':'');b.innerHTML=`<img src="${item.src}" alt="Conceito ${i+1}"><span>Opção ${i+1}</span>`;b.onclick=()=>selectAiChoice(item,i);wrap.appendChild(b)});img.parentNode.insertBefore(wrap,img);img.src=items[0].src}
  function dataUrlToFile(dataUrl,name){const [head,b64]=dataUrl.split(',');const mime=(head.match(/data:([^;]+)/)||[])[1]||'image/png';const bin=atob(b64);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new File([bytes],name,{type:mime})}
  function openAiPublishModal(defaultName){
   const playlists=(demo.playlists||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'pt-BR'));
