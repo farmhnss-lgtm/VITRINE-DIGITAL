@@ -360,7 +360,7 @@ render();bootLocalPlayer();
     const results=[];
     for(let variant=1;variant<=3;variant++){
      if(st)st.textContent=`Criando conceito visual ${variant} de 3…`;
-     const data=await callEditorAI('folder',visualPrompt,'','portrait','',variant);let src=folderSrc(data.folder);if(!src)continue;src=await forcePortrait916(src);results.push({src,mime:'image/jpeg',prompt,kind:'folder',variant,model:data.model});
+     const data=await callEditorAI('folder',visualPrompt,'','portrait','',variant);let src=folderSrc(data.folder);if(!src)continue;src=await forcePortrait916(src);const rawSrc=src;src=await composeDirectorOverlay(rawSrc);results.push({src,rawSrc,mime:'image/jpeg',prompt,kind:'folder',variant,model:data.model});
     }
     if(!results.length)throw new Error('A IA não retornou opções utilizáveis.');showAiChoices(results);selectAiChoice(results[0],0);if(st)st.textContent=`✦ ${results.length} conceitos criados com FLUX.2 Klein. Toque na opção que melhor representa a campanha.`;vdToast('Conceitos visuais prontos para escolher.','success');
    }
@@ -370,6 +370,18 @@ render();bootLocalPlayer();
  function showSingleAiResult(src){const box=qs('#aiGeneratedPreview'),img=qs('#aiGeneratedImage');const choices=qs('#aiGeneratedChoices');if(choices)choices.remove();if(img){img.style.display='block';img.src=src}if(box)box.style.display='block'}
  function selectAiChoice(item,index){aiGenerated=item;const img=qs('#aiGeneratedImage');if(img){img.src=item.src;img.style.display='block'}document.querySelectorAll('.ai-choice').forEach((b,i)=>b.classList.toggle('selected',i===index))}
  function showAiChoices(items){const box=qs('#aiGeneratedPreview'),img=qs('#aiGeneratedImage');if(!box||!img)return;box.style.display='block';let old=qs('#aiGeneratedChoices');if(old)old.remove();const wrap=document.createElement('div');wrap.id='aiGeneratedChoices';wrap.className='ai-generated-choices';items.forEach((item,i)=>{const b=document.createElement('button');b.type='button';b.className='ai-choice'+(i===0?' selected':'');b.innerHTML=`<img src="${item.src}" alt="Conceito ${i+1}"><span>Opção ${i+1}</span>`;b.onclick=()=>selectAiChoice(item,i);wrap.appendChild(b)});img.parentNode.insertBefore(wrap,img);img.src=items[0].src}
+ async function composeDirectorOverlay(photoSrc){
+  const p=aiDirectorPlan||{};if(!p.headline&&!p.support&&!p.cta)return photoSrc;
+  const im=await loadDataImage(photoSrc),c=document.createElement('canvas');c.width=1080;c.height=1920;const x=c.getContext('2d');
+  const sc=Math.max(c.width/im.width,c.height/im.height),dw=im.width*sc,dh=im.height*sc;x.drawImage(im,(c.width-dw)/2,(c.height-dh)/2,dw,dh);
+  const topH=420,bottomH=270;x.fillStyle='rgba(5,15,24,.82)';x.fillRect(0,0,c.width,topH);x.fillStyle='rgba(5,15,24,.78)';x.fillRect(0,c.height-bottomH,c.width,bottomH);
+  function lines(text,maxWidth,font,maxLines=3){x.font=font;const words=String(text||'').split(/\s+/),out=[];let line='';for(const w of words){const t=(line+' '+w).trim();if(x.measureText(t).width>maxWidth&&line){out.push(line);line=w;if(out.length>=maxLines-1)break}else line=t}if(line&&out.length<maxLines)out.push(line);return out}
+  x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fff';let ls=lines(p.headline,c.width*.86,'700 70px Arial, sans-serif',3);ls.forEach((t,i)=>{x.font='700 70px Arial, sans-serif';x.fillText(t,c.width/2,105+i*82)});
+  if(p.support){x.fillStyle='rgba(255,255,255,.92)';ls=lines(p.support,c.width*.84,'400 38px Arial, sans-serif',2);ls.forEach((t,i)=>{x.font='400 38px Arial, sans-serif';x.fillText(t,c.width/2,330+i*48)})}
+  if(p.cta){x.fillStyle='#fff';x.font='700 48px Arial, sans-serif';x.fillText(String(p.cta).slice(0,80),c.width/2,c.height-135)}
+  return c.toDataURL('image/jpeg',.94)
+ }
+ function directorSceneElements(rawSrc){const p=aiDirectorPlan||{},lay=p.layout||{};return [{id:sid(),type:'image',content:rawSrc,x:0,y:0,w:100,h:100,size:32,color:'#ffffff'},{id:sid(),type:'text',content:p.headline||'',x:Number(lay.headline?.x??8),y:Number(lay.headline?.y??5),w:Number(lay.headline?.w??84),h:Number(lay.headline?.h??15),size:46,color:'#ffffff'},{id:sid(),type:'text',content:p.support||'',x:Number(lay.support?.x??10),y:Number(lay.support?.y??20),w:Number(lay.support?.w??80),h:Number(lay.support?.h??10),size:26,color:'#ffffff'},{id:sid(),type:'text',content:p.cta||'',x:Number(lay.cta?.x??20),y:Number(lay.cta?.y??86),w:Number(lay.cta?.w??60),h:Number(lay.cta?.h??8),size:28,color:'#ffffff'}].filter((e,i)=>i===0||e.content)}
  function dataUrlToFile(dataUrl,name){const [head,b64]=dataUrl.split(',');const mime=(head.match(/data:([^;]+)/)||[])[1]||'image/png';const bin=atob(b64);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new File([bytes],name,{type:mime})}
  function openAiPublishModal(defaultName){
   const playlists=(demo.playlists||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'pt-BR'));
@@ -385,7 +397,7 @@ render();bootLocalPlayer();
  async function saveAiContent(){
   if(!aiGenerated){vdToast('Gere uma imagem primeiro.','error');return}openAiPublishModal('Conteúdo IA '+new Date().toLocaleDateString('pt-BR'));
  }
- function useAiInScene(){if(!aiGenerated)return alert('Gere uma imagem primeiro.');scene.elements=[{id:sid(),type:'image',content:aiGenerated.src,x:0,y:0,w:100,h:100,size:32,color:'#ffffff'}];selected=scene.elements[0].id;draw();localStorage.setItem('vd483_scene',JSON.stringify(scene));}
+ function useAiInScene(){if(!aiGenerated)return alert('Gere uma imagem primeiro.');scene.orientation='portrait';scene.elements=directorSceneElements(aiGenerated.rawSrc||aiGenerated.src);selected=scene.elements.find(e=>e.type==='text')?.id||scene.elements[0]?.id||null;draw();localStorage.setItem('vd483_scene',JSON.stringify(scene));vdToast('Arte aberta com fotografia e textos em camadas editáveis.','success');}
  async function improveSelectedText(){
   const el=scene.elements.find(x=>x.id===selected);if(!el||el.type!=='text'){alert('Selecione um elemento de texto no editor.');return}let v=String(el.content||'').trim();if(!v)return;
   const st=qs('#aiEditorStatus'),btn=qs('#aiImproveTextBtn');if(btn){btn.disabled=true;btn.textContent='Melhorando…'}
