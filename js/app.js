@@ -300,6 +300,28 @@ render();bootLocalPlayer();
   catch(err){console.error('Editor IA',err);const copy=aiText(prompt);applyAiLayout({copy,prompt});if(st)st.textContent='IA indisponível: '+(err?.message||err)+' · modo local aplicado.';}
   finally{if(btn){btn.disabled=false;btn.textContent='✦ Criar com IA'}}
  }
+ let aiGenerated=null;
+ function folderSrc(folder){if(!folder)return'';if(folder.uri)return folder.uri;if(folder.data)return `data:${folder.mime||'image/png'};base64,${folder.data}`;return''}
+ async function generateAiImage(kind){
+  const prompt=qs('#aiEditorPrompt')?.value||'';if(!prompt.trim()){alert('Descreva o conteúdo que você quer criar.');return}
+  const st=qs('#aiEditorStatus'),btn=qs(kind==='image'?'#aiCreatePhotoBtn':'#aiCreateFolderBtn');const original=btn?.textContent||'';
+  if(btn){btn.disabled=true;btn.textContent='Gerando…'}if(st)st.textContent=kind==='image'?'Criando foto com IA…':'Criando conteúdo para o totem…';
+  try{
+   const data=await callEditorAI(kind==='image'?'image':'folder',prompt);const src=folderSrc(data.folder);if(!src)throw new Error('A IA não retornou uma imagem utilizável.');
+   aiGenerated={src,mime:data.folder?.mime||'image/png',prompt,kind};const img=qs('#aiGeneratedImage'),box=qs('#aiGeneratedPreview');if(img)img.src=src;if(box)box.style.display='block';
+   if(st)st.textContent=kind==='image'?'✦ Foto criada. Revise e salve em Conteúdos.':'✦ Conteúdo criado para o totem. Revise e salve em Conteúdos.';
+  }catch(err){console.error('Editor IA imagem',err);if(st)st.textContent='Erro ao gerar imagem: '+(err?.message||err);}
+  finally{if(btn){btn.disabled=false;btn.textContent=original}}
+ }
+ function dataUrlToFile(dataUrl,name){const [head,b64]=dataUrl.split(',');const mime=(head.match(/data:([^;]+)/)||[])[1]||'image/png';const bin=atob(b64);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new File([bytes],name,{type:mime})}
+ async function saveAiContent(){
+  if(!aiGenerated)return alert('Gere uma imagem primeiro.');const st=qs('#aiEditorStatus');try{
+   let url=aiGenerated.src;if(url.startsWith('data:')&&db){const file=dataUrlToFile(url,'ia-'+Date.now()+'.png');url=await uploadFile(file)}
+   const name=(prompt('Nome do conteúdo:','Conteúdo IA '+new Date().toLocaleDateString('pt-BR'))||'').trim();if(!name)return;
+   await insert('media',{name,type:'image',file_url:url,text_content:null,duration:10,active:true,local_session_only:false});await render();if(st)st.textContent='✓ Conteúdo salvo. Agora ele já pode ser adicionado a uma playlist.';alert('Conteúdo salvo com sucesso!');
+  }catch(err){console.error(err);if(st)st.textContent='Erro ao salvar: '+(err?.message||err);alert('Erro ao salvar conteúdo: '+(err?.message||err))}
+ }
+ function useAiInScene(){if(!aiGenerated)return alert('Gere uma imagem primeiro.');scene.elements=[{id:sid(),type:'image',content:aiGenerated.src,x:0,y:0,w:100,h:100,size:32,color:'#ffffff'}];selected=scene.elements[0].id;draw();localStorage.setItem('vd48_scene',JSON.stringify(scene));}
  async function improveSelectedText(){
   const el=scene.elements.find(x=>x.id===selected);if(!el||el.type!=='text'){alert('Selecione um elemento de texto no editor.');return}let v=String(el.content||'').trim();if(!v)return;
   const st=qs('#aiEditorStatus'),btn=qs('#aiImproveTextBtn');if(btn){btn.disabled=true;btn.textContent='Melhorando…'}
@@ -308,7 +330,7 @@ render();bootLocalPlayer();
   finally{if(btn){btn.disabled=false;btn.textContent='Melhorar texto selecionado'}}
  }
  document.querySelectorAll('[data-ai-preset]').forEach(b=>b.onclick=()=>{const p=qs('#aiEditorPrompt');if(!p)return;const x=b.dataset.aiPreset;p.value=x==='promo'?'Crie uma promoção vertical com título forte, preço em destaque e chamada Compre agora':x==='institucional'?'Crie uma arte institucional elegante com título, mensagem curta e chamada Saiba mais':'Crie uma oferta visual com nome do item, destaque principal e chamada Peça agora';p.focus()});
- const aiBuild=qs('#aiBuildLayoutBtn');if(aiBuild)aiBuild.onclick=buildAiLayout;const aiImprove=qs('#aiImproveTextBtn');if(aiImprove)aiImprove.onclick=improveSelectedText;
+ const aiBuild=qs('#aiBuildLayoutBtn');if(aiBuild)aiBuild.onclick=buildAiLayout;const aiFolder=qs('#aiCreateFolderBtn');if(aiFolder)aiFolder.onclick=()=>generateAiImage('folder');const aiPhoto=qs('#aiCreatePhotoBtn');if(aiPhoto)aiPhoto.onclick=()=>generateAiImage('image');const aiSave=qs('#aiSaveContentBtn');if(aiSave)aiSave.onclick=saveAiContent;const aiUse=qs('#aiUseInSceneBtn');if(aiUse)aiUse.onclick=useAiInScene;const aiImprove=qs('#aiImproveTextBtn');if(aiImprove)aiImprove.onclick=improveSelectedText;
  document.querySelectorAll('[data-add-element]').forEach(b=>b.onclick=()=>add(b.dataset.addElement));canvas.onclick=()=>{selected=null;draw()};qs('#sceneOrientation').onchange=e=>{scene.orientation=e.target.value;draw()};qs('#saveSceneBtn').onclick=async()=>{localStorage.setItem('vd48_scene',JSON.stringify(scene));try{if(db){const name=prompt('Nome da cena:','Cena '+new Date().toLocaleDateString('pt-BR'))||'Cena';await insert('scenes',{name,orientation:scene.orientation,content:scene,duration:10,active:true});alert('Cena salva no Supabase e no cache local.')}else alert('Cena salva localmente. Conecte o Supabase para sincronizar.')}catch(err){console.error(err);alert('Cena salva localmente, mas houve erro ao sincronizar: '+err.message)}};qs('#newSceneBtn').onclick=()=>{if(confirm('Criar nova cena?')){scene={orientation:'landscape',elements:[]};selected=null;draw()}};qs('#clearSceneBtn').onclick=()=>{if(confirm('Limpar todos os elementos?')){scene.elements=[];selected=null;draw()}};qs('#previewSceneBtn').onclick=()=>{localStorage.setItem('vd48_scene',JSON.stringify(scene));window.open('../player/scene.html','_blank')};draw();
 })();
 
