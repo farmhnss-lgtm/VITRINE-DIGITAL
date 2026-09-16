@@ -259,25 +259,47 @@ render();bootLocalPlayer();
  function renderProps(){const el=scene.elements.find(x=>x.id===selected);if(!el){props.innerHTML='<p class="muted">Selecione um elemento.</p>';return}props.innerHTML=`<label>Conteúdo<input id="propContent" value="${esc(el.content)}"></label><label>Largura %<input id="propW" type="number" min="5" max="100" value="${el.w}"></label><label>Altura %<input id="propH" type="number" min="5" max="100" value="${el.h}"></label>${el.type==='text'?`<label>Tamanho<input id="propSize" type="number" min="12" max="120" value="${el.size}"></label><label>Cor<input id="propColor" type="color" value="${el.color}"></label>`:''}<button id="deleteElementBtn" class="btn danger">Excluir elemento</button>`;['propContent','propW','propH','propSize','propColor'].forEach(id=>{const n=qs('#'+id);if(n)n.oninput=()=>{if(id==='propContent')el.content=n.value;if(id==='propW')el.w=Number(n.value);if(id==='propH')el.h=Number(n.value);if(id==='propSize')el.size=Number(n.value);if(id==='propColor')el.color=n.value;draw()}});qs('#deleteElementBtn').onclick=()=>{scene.elements=scene.elements.filter(x=>x.id!==selected);selected=null;draw()}}
  function aiText(prompt){
   const t=String(prompt||'').trim();
-  const price=(t.match(/(?:R\$\s*)?\d+[\.,]?\d*/)||[])[0]||'';
   let title='OFERTA ESPECIAL',sub='Aproveite por tempo limitado',cta='SAIBA MAIS';
-  if(/institucional|hospital|empresa|marca/i.test(t)){title='SUA MARCA EM DESTAQUE';sub='Informação clara para o seu público';cta='CONHEÇA';}
+  const price=(t.match(/R\$\s?[\d.,]+/i)||[])[0]||'';
+  if(/institucional|empresa|marca|servi[cç]o/i.test(t)){title='SUA MARCA EM DESTAQUE';sub='Uma mensagem clara para seu público';cta='CONHEÇA MAIS';}
   if(/card[aá]pio|menu|refei|lanche/i.test(t)){title='DESTAQUE DO DIA';sub='Confira nossas opções';cta='PEÇA AGORA';}
-  const quoted=(t.match(/[“\"]([^”\"]{3,60})[”\"]/ )||[])[1]; if(quoted) title=quoted.toUpperCase();
+  if(/promo|oferta|desconto|pre[cç]o/i.test(t)){title='OFERTA ESPECIAL';sub='Aproveite esta oportunidade';cta='COMPRE AGORA';}
   return {title,sub,cta,price};
  }
- function buildAiLayout(){
-  const prompt=qs('#aiEditorPrompt')?.value||''; if(!prompt.trim()){alert('Descreva o que você quer criar.');return}
-  const copy=aiText(prompt); const portrait=scene.orientation==='portrait';
-  scene.elements=[];
-  scene.elements.push({id:sid(),type:'text',content:copy.title,x:8,y:portrait?10:12,w:84,h:16,size:portrait?48:42,color:'#ffffff'});
-  scene.elements.push({id:sid(),type:'text',content:copy.sub,x:10,y:portrait?29:34,w:80,h:12,size:portrait?28:25,color:'#ffffff'});
-  if(copy.price)scene.elements.push({id:sid(),type:'text',content:copy.price,x:10,y:portrait?48:54,w:80,h:15,size:portrait?54:46,color:'#ffffff'});
-  scene.elements.push({id:sid(),type:'text',content:copy.cta,x:20,y:portrait?76:74,w:60,h:12,size:portrait?30:26,color:'#ffffff'});
-  selected=scene.elements[0].id; draw(); localStorage.setItem('vd48_scene',JSON.stringify(scene));
-  const st=qs('#aiEditorStatus');if(st)st.textContent='Layout criado no editor. Revise, arraste os elementos e salve a cena.';
+ function applyAiLayout(layout){
+  const portrait=scene.orientation==='portrait';
+  const safe=layout&&typeof layout==='object'?layout:{};
+  const els=Array.isArray(safe.elements)?safe.elements:[];
+  if(els.length){
+   scene.elements=els.slice(0,10).map((x,i)=>({id:sid(),type:['text','image'].includes(x.type)?x.type:'text',content:String(x.content||''),x:Math.max(0,Math.min(95,Number(x.x??10))),y:Math.max(0,Math.min(95,Number(x.y??(10+i*15)))),w:Math.max(5,Math.min(100,Number(x.w??80))),h:Math.max(5,Math.min(100,Number(x.h??12))),size:Math.max(12,Math.min(120,Number(x.size??32))),color:/^#[0-9a-f]{6}$/i.test(x.color||'')?x.color:'#ffffff'}));
+  }else{
+   const copy=safe.copy||aiText(safe.prompt||'');scene.elements=[];
+   scene.elements.push({id:sid(),type:'text',content:copy.title||'OFERTA ESPECIAL',x:8,y:portrait?10:12,w:84,h:16,size:portrait?48:42,color:'#ffffff'});
+   scene.elements.push({id:sid(),type:'text',content:copy.sub||'',x:10,y:portrait?29:34,w:80,h:12,size:portrait?28:25,color:'#ffffff'});
+   if(copy.price)scene.elements.push({id:sid(),type:'text',content:copy.price,x:10,y:portrait?48:54,w:80,h:15,size:portrait?54:46,color:'#ffffff'});
+   scene.elements.push({id:sid(),type:'text',content:copy.cta||'SAIBA MAIS',x:20,y:portrait?76:74,w:60,h:12,size:portrait?30:26,color:'#ffffff'});
+  }
+  selected=scene.elements[0]?.id||null;draw();localStorage.setItem('vd48_scene',JSON.stringify(scene));
  }
- function improveSelectedText(){const el=scene.elements.find(x=>x.id===selected);if(!el||el.type!=='text'){alert('Selecione um elemento de texto no editor.');return}let v=String(el.content||'').trim();if(!v)return;v=v.replace(/\s+/g,' ');if(v.length<42&&!/[.!?]$/.test(v))v+='!';el.content=v;draw();const st=qs('#aiEditorStatus');if(st)st.textContent='Texto ajustado. A conexão com o modelo de IA ficará no backend seguro.';}
+ async function callEditorAI(action,prompt,selectedText=''){
+  if(!db?.functions?.invoke)throw new Error('Backend de IA ainda não configurado.');
+  const {data,error}=await db.functions.invoke('editor-ai',{body:{action,prompt,selectedText,orientation:scene.orientation}});
+  if(error)throw error;if(!data?.ok)throw new Error(data?.error||'A IA não retornou uma resposta válida.');return data;
+ }
+ async function buildAiLayout(){
+  const prompt=qs('#aiEditorPrompt')?.value||'';if(!prompt.trim()){alert('Descreva o que você quer criar.');return}
+  const st=qs('#aiEditorStatus'),btn=qs('#aiBuildLayoutBtn');if(btn){btn.disabled=true;btn.textContent='✦ Criando…'}if(st)st.textContent='Preparando sua arte…';
+  try{const data=await callEditorAI('layout',prompt);applyAiLayout(data.layout);if(st)st.textContent='✦ Layout criado pela IA. Revise, arraste os elementos e salve a cena.';}
+  catch(err){console.warn('Editor IA fallback',err);const copy=aiText(prompt);applyAiLayout({copy,prompt});if(st)st.textContent='Modo local usado. Para IA real, publique a função editor-ai e configure OPENAI_API_KEY.';}
+  finally{if(btn){btn.disabled=false;btn.textContent='✦ Criar com IA'}}
+ }
+ async function improveSelectedText(){
+  const el=scene.elements.find(x=>x.id===selected);if(!el||el.type!=='text'){alert('Selecione um elemento de texto no editor.');return}let v=String(el.content||'').trim();if(!v)return;
+  const st=qs('#aiEditorStatus'),btn=qs('#aiImproveTextBtn');if(btn){btn.disabled=true;btn.textContent='Melhorando…'}
+  try{const data=await callEditorAI('improve','Melhore este texto para digital signage, curto e impactante.',v);el.content=String(data.text||v);draw();if(st)st.textContent='✦ Texto melhorado pela IA.';}
+  catch(err){v=v.replace(/\s+/g,' ');if(v.length<42&&!/[.!?]$/.test(v))v+='!';el.content=v;draw();if(st)st.textContent='Texto ajustado localmente. Backend de IA ainda não configurado.';}
+  finally{if(btn){btn.disabled=false;btn.textContent='Melhorar texto selecionado'}}
+ }
  document.querySelectorAll('[data-ai-preset]').forEach(b=>b.onclick=()=>{const p=qs('#aiEditorPrompt');if(!p)return;const x=b.dataset.aiPreset;p.value=x==='promo'?'Crie uma promoção vertical com título forte, preço em destaque e chamada Compre agora':x==='institucional'?'Crie uma arte institucional elegante com título, mensagem curta e chamada Saiba mais':'Crie uma oferta visual com nome do item, destaque principal e chamada Peça agora';p.focus()});
  const aiBuild=qs('#aiBuildLayoutBtn');if(aiBuild)aiBuild.onclick=buildAiLayout;const aiImprove=qs('#aiImproveTextBtn');if(aiImprove)aiImprove.onclick=improveSelectedText;
  document.querySelectorAll('[data-add-element]').forEach(b=>b.onclick=()=>add(b.dataset.addElement));canvas.onclick=()=>{selected=null;draw()};qs('#sceneOrientation').onchange=e=>{scene.orientation=e.target.value;draw()};qs('#saveSceneBtn').onclick=async()=>{localStorage.setItem('vd48_scene',JSON.stringify(scene));try{if(db){const name=prompt('Nome da cena:','Cena '+new Date().toLocaleDateString('pt-BR'))||'Cena';await insert('scenes',{name,orientation:scene.orientation,content:scene,duration:10,active:true});alert('Cena salva no Supabase e no cache local.')}else alert('Cena salva localmente. Conecte o Supabase para sincronizar.')}catch(err){console.error(err);alert('Cena salva localmente, mas houve erro ao sincronizar: '+err.message)}};qs('#newSceneBtn').onclick=()=>{if(confirm('Criar nova cena?')){scene={orientation:'landscape',elements:[]};selected=null;draw()}};qs('#clearSceneBtn').onclick=()=>{if(confirm('Limpar todos os elementos?')){scene.elements=[];selected=null;draw()}};qs('#previewSceneBtn').onclick=()=>{localStorage.setItem('vd48_scene',JSON.stringify(scene));window.open('../player/scene.html','_blank')};draw();
