@@ -304,3 +304,50 @@ body.monitor-focus .monitor-grid{grid-template-columns:repeat(auto-fill,minmax(2
  #editor .ai-result-actions{display:grid!important;grid-template-columns:1fr 1fr!important}
  #editor .ai-result-actions .btn{width:100%!important}
 }
+
+/* 4.45 — camada final de consolidação visual. Mantém compatibilidade com as regras legadas. */
+html{background:#07111f;scroll-behavior:smooth}
+body{min-height:100dvh;-webkit-text-size-adjust:100%}
+.btn:disabled{opacity:.58;cursor:wait;filter:saturate(.55)}
+.btn[aria-busy="true"]{position:relative}
+.vd-toast{position:fixed;z-index:120;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translate(-50%,18px);width:min(92vw,460px);padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:#0b1929;color:#eef6ff;box-shadow:0 12px 40px #0009;opacity:0;pointer-events:none;transition:.18s ease;font-weight:700;text-align:center}
+.vd-toast.show{opacity:1;transform:translate(-50%,0)}
+.vd-toast.success{border-color:#247a55}.vd-toast.error{border-color:#8b3345}
+#editor{max-width:1180px;margin-inline:auto}
+#editor .ai-studio-main{border-color:#245174;box-shadow:0 16px 50px #0004}
+#editor .quick-editor{margin-top:14px;border:1px solid var(--line);border-radius:14px;background:#0a1727;overflow:hidden}
+#editor .quick-editor>summary{cursor:pointer;list-style:none;padding:14px 16px;font-weight:800;color:#dff3ff;display:flex;align-items:center;justify-content:space-between}
+#editor .quick-editor>summary::-webkit-details-marker{display:none}
+#editor .quick-editor>summary:after{content:'Abrir';font-size:11px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 8px}
+#editor .quick-editor[open]>summary:after{content:'Fechar'}
+#editor .quick-editor[open]>summary{border-bottom:1px solid var(--line)}
+#editor .quick-editor>.editor-top,#editor .quick-editor>.editor-shell{margin:14px}
+#editor .ai-result-actions{flex-wrap:wrap}
+#editor #aiGeneratedImage{aspect-ratio:9/16;max-width:430px;margin-inline:auto}
+@media(max-width:700px){
+  .content{padding:14px 12px calc(92px + env(safe-area-inset-bottom))}
+  .section-head{gap:10px;margin-bottom:14px}
+  .section-head h1{font-size:23px;line-height:1.15}
+  .section-head p{font-size:12px;line-height:1.45}
+  #editor .section-head .action-row{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  #editor .section-head .action-row .btn{width:100%;min-height:42px}
+  #editor .ai-studio-main{padding:14px;border-radius:13px}
+  #editor .ai-editor-form textarea{min-height:88px;font-size:16px}
+  #editor .ai-editor-actions{gap:8px}
+  #editor .ai-editor-actions .btn{min-height:44px}
+  #editor .ai-editor-presets{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  #editor .quick-editor{margin-top:12px}
+  #editor .quick-editor>summary{padding:13px}
+  #editor .quick-editor>.editor-top,#editor .quick-editor>.editor-shell{margin:10px}
+  #editor .editor-top{display:grid;grid-template-columns:1fr 1fr}
+  #editor .editor-top #sceneOrientation{grid-column:1/-1;width:100%}
+  #editor .editor-top .btn{width:100%}
+  #editor .editor-workspace{min-height:0;padding:10px!important}
+  #editor .scene-canvas.portrait{width:min(100%,330px);max-height:calc(100dvh - 220px)}
+  #editor .scene-canvas:not(.portrait){width:100%}
+  #editor .editor-panel.props{padding:13px}
+  #editor .add-elements{padding:12px}
+  #editor #aiGeneratedImage{width:min(100%,330px)!important;max-height:none!important}
+  .modal{padding:10px}.modal-box{max-height:calc(100dvh - 20px);padding:18px 14px}
+  input,select,textarea{font-size:16px!important}
+}
